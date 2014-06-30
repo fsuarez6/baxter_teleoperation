@@ -1,0 +1,11 @@
+<Robot name="baxter" file="baxter.dae">
+  <Manipulator name="left_arm">
+    <base>base</base>
+    <effector>left_gripper</effector>
+  </Manipulator>
+  
+  <Manipulator name="right_arm">
+    <base>base</base>
+    <effector>right_gripper</effector>
+  </Manipulator>
+</Robot>
