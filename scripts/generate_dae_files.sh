@@ -1,6 +1,6 @@
 #!/bin/sh
-#~ This script generates the .dae and .urdf files for all the robots 
-#~ found in the grips_description/robots 
+#~ This script generates the .dae files for all the .urdf robots 
+#~ found in the baxter_teleop/openrave
 
 DESCRIPTION_PKG=`rospack find baxter_teleop`
 FILES=$(find $DESCRIPTION_PKG/openrave -type f -name *.urdf)
