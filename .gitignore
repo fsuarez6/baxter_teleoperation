@@ -21,4 +21,4 @@
 *.app
 
 # Collada
-baxter.dae
+*.dae
