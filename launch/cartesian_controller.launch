@@ -4,6 +4,9 @@
   
   <!-- the semantic description that corresponds to the URDF -->
   <param name="robot_description_semantic" textfile="$(find baxter_moveit_config)/config/$(arg robot_name).srdf" />
+  
+  <!-- Enable baxter robot -->
+  <node name="enable_baxter_robot" pkg="baxter_tools" type="enable_robot.py" output="screen" args="-e"/>
    
   <!-- motion control using ik plugin defined in kinematics.yaml -->
   <node name="baxter_cart_controller" pkg="baxter_teleop" type="cartesian_controller" output="screen">
@@ -12,4 +15,6 @@
     <param name="planning_group" value="left_arm"/>
   </node>
   
+  <!-- Show in Rviz -->
+  <node name="rviz" pkg="rviz" type="rviz" output="screen" args="-d $(find baxter_teleop)/config/cartesian_controller.rviz"/>   
 </launch>
