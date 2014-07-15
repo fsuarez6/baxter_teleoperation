@@ -1,4 +1,4 @@
-- git: {local-name: baxter_telop, uri: 'https://github.com/fsuarez6/baxter_telop.git', version: hydro-devel}
+- git: {local-name: baxter_teleop, uri: 'https://github.com/fsuarez6/baxter_teleop.git', version: hydro-devel}
 
 - git: {local-name: moveit_robots, uri: 'https://github.com/fsuarez6/moveit_robots.git', version: master}
 - git: {local-name: phantom_omni, uri: 'https://github.com/fsuarez6/phantom_omni', version: hydro-devel}
