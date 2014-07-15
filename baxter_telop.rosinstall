@@ -1,0 +1,1 @@
+- git: {local-name: baxter_telop, uri: 'https://github.com/fsuarez6/baxter_telop.git', version: hydro-devel}
