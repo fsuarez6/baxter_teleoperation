@@ -8,7 +8,7 @@
     <param name="robot_description_semantic" textfile="$(find baxter_moveit_config)/config/baxter.srdf" />
     
     <!-- Start the kinematic services node -->
-    <node name="kinematic_services" pkg="grips_kinematics" type="kinematic_services" output="screen">
+    <node name="kinematics_services" pkg="moveit_kinematics_interface" type="kinematics_services" output="screen">
       <rosparam command="load" file="$(find baxter_moveit_config)/config/kinematics.yaml"/>
       <param name="ik_dynamic_reconfigure" value="false"/>
       <param name="planning_group" value="left_arm"/>

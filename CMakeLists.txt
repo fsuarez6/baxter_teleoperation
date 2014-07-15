@@ -3,23 +3,22 @@ project(baxter_teleop)
 
 find_package(catkin REQUIRED COMPONENTS
   baxter_core_msgs
-  baxter_description
   baxter_interface
-  baxter_moveit_config
   baxter_tools
-  grips_kinematics
-  grips_msgs
-  omni_common
+  moveit_kinematics_interface
   rate_position_controller
 )
 
 catkin_python_setup()
 
-catkin_package(
-  CATKIN_DEPENDS
+catkin_package(CATKIN_DEPENDS
   baxter_core_msgs
-  grips_kinematics
-  grips_msgs
+  baxter_description
+  baxter_interface
+  baxter_moveit_config
+  baxter_tools
+  moveit_kinematics_interface
+  rate_position_controller
 )
 
 find_package(Eigen REQUIRED)
@@ -31,4 +30,4 @@ link_directories(${catkin_LIBRARY_DIRS})
 
 add_executable(cartesian_controller src/cartesian_controller.cpp)
 target_link_libraries(cartesian_controller ${catkin_LIBRARIES} ${Boost_LIBRARIES})
-add_dependencies(cartesian_controller baxter_core_msgs_gencpp grips_msgs_gencpp)
+add_dependencies(cartesian_controller baxter_core_msgs_gencpp)

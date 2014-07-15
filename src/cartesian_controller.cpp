@@ -11,17 +11,17 @@
 #include <std_msgs/Float64.h>
 #include <sensor_msgs/JointState.h>
 #include <geometry_msgs/PoseStamped.h>
-#include "grips_msgs/GripsState.h"
-#include "baxter_core_msgs/JointCommand.h"
-#include "baxter_core_msgs/EndpointState.h"
+//~ #include "grips_msgs/GripsState.h"
+#include <baxter_core_msgs/JointCommand.h>
+#include <baxter_core_msgs/EndpointState.h>
 
 // Joint limits
 #include <joint_limits_interface/joint_limits_urdf.h>
 
 // Grips kinematic Interface
-#include <grips_kinematics/kinematic_interface.hpp>
+#include <moveit/kinematics_interface/kinematics_interface.h>
 
-using namespace grips_kinematics;
+using namespace moveit;
 
 class CartesianController 
 {
@@ -29,14 +29,12 @@ class CartesianController
     // Ros
     ros::NodeHandle                           nh_, nh_private_;
     ros::Publisher                            control_publisher_;
-    ros::Publisher                            state_publisher_;
     ros::Publisher                            pose_publisher_;
-    ros::Subscriber                           joint_states_sub_;
+    ros::Subscriber                           end_point_sub_;
     ros::Subscriber                           motion_control_sub_;
-    ros::Timer                                state_timer_;
     ros::Timer                                pose_timer_;
     // Kinematics
-    KinematicInterfacePtr                     ik_kinematics_;
+    KinematicsInterfacePtr                     ik_kinematics_;
     Eigen::Affine3d                           end_effector_pose_;
     std::map<std::string, joint_limits_interface::JointLimits> urdf_limits_;
     // Time
@@ -47,7 +45,7 @@ class CartesianController
     std::vector<std::string>                  joint_names_;
     std::string                               robot_namespace_;
     std::string                               model_frame_; 
-    double                                   publish_frequency_;
+    double                                   publish_rate_;
     double                                   position_error_;
     
   public:
@@ -55,9 +53,9 @@ class CartesianController
       nh_private_("~")
     { 
       // Get parameters from the server
-      nh_private_.param(std::string("publish_frequency"), publish_frequency_, 100.0);
-      if (!nh_private_.hasParam("publish_frequency"))
-        ROS_WARN_STREAM("Parameter [~publish_frequency] not found, using default: " << publish_frequency_ << " Hz");      
+      nh_private_.param(std::string("publish_rate"), publish_rate_, 100.0);
+      if (!nh_private_.hasParam("publish_rate"))
+        ROS_WARN_STREAM("Parameter [~publish_rate] not found, using default: " << publish_rate_ << " Hz");      
       
       // Get robot namespace
       robot_namespace_ = ros::this_node::getNamespace();
@@ -70,7 +68,7 @@ class CartesianController
       }
       
       // Kinematic interfaces
-      ik_kinematics_.reset(new KinematicInterface());
+      ik_kinematics_.reset(new KinematicsInterface());
       joint_names_ = ik_kinematics_->getActiveJointModelNames();
       model_frame_ = ik_kinematics_->getModelFrame();
       urdf_limits_ = ik_kinematics_->getJointLimits();
@@ -80,16 +78,12 @@ class CartesianController
       topic_name = "/robot/limb/left/joint_command";
       control_publisher_ = nh_.advertise<baxter_core_msgs::JointCommand>(topic_name.c_str(), 1);
       topic_name = "/robot/limb/left/endpoint_state";
-      joint_states_sub_ = nh_.subscribe(topic_name.c_str(), 1, &CartesianController::endPointStatesCB, this);
+      end_point_sub_ = nh_.subscribe(topic_name.c_str(), 1, &CartesianController::endPointStateCB, this);
       topic_name = "/baxter/ik_command";
       motion_control_sub_ = nh_.subscribe(topic_name.c_str(), 1, &CartesianController::ikCommandCB, this); 
-      topic_name = "/baxter/state";
-      state_publisher_ = nh_.advertise<grips_msgs::GripsState>(topic_name.c_str(), 1);
       topic_name = "/baxter/pose";
       pose_publisher_ = nh_.advertise<geometry_msgs::PoseStamped>(topic_name.c_str(), 1);
-      
-      // Setup timer for publishing state at publish_frequency
-      state_timer_ = nh_.createTimer(ros::Duration(1.0/publish_frequency_), &CartesianController::publishState, this);
+
       // Setup timer for publishing pose at 60 Hz
       pose_timer_ = nh_.createTimer(ros::Duration(1.0/60), &CartesianController::publishPose, this);
 
@@ -100,27 +94,17 @@ class CartesianController
     {
     }
     
+    // publish pose only (for rviz visualization)
     void publishPose(const ros::TimerEvent& _event) 
     {
       geometry_msgs::PoseStamped pose_msg;
       pose_msg.header.frame_id = model_frame_;
       tf::poseEigenToMsg(end_effector_pose_, pose_msg.pose);
       pose_msg.header.stamp = ros::Time::now();
-      // publish pose only (for rviz visualization)
       pose_publisher_.publish(pose_msg);
     }
     
-    void publishState(const ros::TimerEvent& _event) 
-    {
-      grips_msgs::GripsState state_msg;
-      state_msg.header.frame_id = model_frame_;
-      tf::poseEigenToMsg(end_effector_pose_, state_msg.pose);
-      state_msg.header.stamp = ros::Time::now();
-      // publish the GripsState msg
-      state_publisher_.publish(state_msg);
-    }
-    
-    void endPointStatesCB(const baxter_core_msgs::EndpointStateConstPtr& _msg) 
+    void endPointStateCB(const baxter_core_msgs::EndpointStateConstPtr& _msg) 
     {
       tf::poseMsgToEigen(_msg->pose, end_effector_pose_);
       // Debug
