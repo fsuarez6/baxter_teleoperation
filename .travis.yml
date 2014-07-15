@@ -28,7 +28,9 @@ install: # Use this to install any prerequisites or dependencies necessary to ru
   - cd ~/catkin_ws/src
   - wstool init .
   # Download non-debian stuff
-  - wstool merge https://raw.github.com/fsuarez6/$PACKAGE_NAME/$TRAVIS_BRANCH/$PACKAGE_NAME.rosinstall
+  - wstool merge https://raw.github.com/RethinkRobotics/baxter/master/baxter_sdk.rosinstall
+  - wstool merge https://raw.github.com/fsuarez6/moveit_kinematics_interface/hydro-devel/moveit_kinematics_interface.rosinstall
+  - wstool merge https://raw.github.com/fsuarez6/baxter_teleop/hydro-devel/baxter_teleop.rosinstall
   - wstool update
   # Delete the .rosinstall version of the repo and use the one of the branch we are testing
   - rm -rf $PACKAGE_NAME/
