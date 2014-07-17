@@ -1,65 +1,40 @@
-rosrun ros_tfraph tf_finder.py -b
-
-rosrun ros_tf_graph tf_broadcaster.py b1 -f /home/fsuarez/catkin_ws/src/ros-tf-graph/data/sensor_frames.txt -r /home/fsuarez/catkin_ws/src/ros-tf-graph/data/calibration_file 
-
-
-At time 1405557200.640
-- Translation: [0.505, 0.055, 1.300]
-- Rotation: in Quaternion [0.014, 0.709, -0.026, 0.705]
-            in RPY [-1.849, 1.553, -1.905]
-At time 1405557201.468
-- Translation: [0.506, 0.056, 1.300]
-- Rotation: in Quaternion [0.013, 0.709, -0.026, 0.705]
-            in RPY [-1.833, 1.551, -1.889]
-At time 1405557202.680
-- Translation: [0.506, 0.056, 1.300]
-- Rotation: in Quaternion [0.013, 0.709, -0.027, 0.705]
-            in RPY [-1.856, 1.551, -1.912]
-At time 1405557203.503
-- Translation: [0.506, 0.056, 1.300]
-- Rotation: in Quaternion [0.014, 0.709, -0.027, 0.705]
-            in RPY [-1.863, 1.551, -1.920]
-At time 1405557204.709
-- Translation: [0.506, 0.055, 1.300]
-- Rotation: in Quaternion [0.014, 0.709, -0.027, 0.705]
-            in RPY [-1.848, 1.552, -1.906]
-At time 1405557205.522
-- Translation: [0.504, 0.051, 1.300]
-- Rotation: in Quaternion [0.016, 0.709, -0.026, 0.705]
-            in RPY [-1.868, 1.555, -1.927]
-At time 1405557206.724
-- Translation: [0.505, 0.051, 1.300]
-- Rotation: in Quaternion [0.016, 0.709, -0.025, 0.705]
-            in RPY [-1.901, 1.556, -1.959]
-At time 1405557207.556
-- Translation: [0.505, 0.051, 1.300]
-- Rotation: in Quaternion [0.017, 0.708, -0.025, 0.705]
-            in RPY [-1.916, 1.558, -1.975]
-At time 1405557208.381
-- Translation: [0.506, 0.050, 1.301]
-- Rotation: in Quaternion [0.017, 0.709, -0.025, 0.705]
-            in RPY [-1.997, 1.558, -2.056]
-At time 1405557209.588
-- Translation: [0.506, 0.051, 1.301]
-- Rotation: in Quaternion [0.017, 0.709, -0.025, 0.705]
-            in RPY [-2.001, 1.558, -2.060]
-At time 1405557210.408
-- Translation: [0.505, 0.050, 1.301]
-- Rotation: in Quaternion [0.017, 0.709, -0.025, 0.705]
-            in RPY [-1.957, 1.558, -2.015]
-At time 1405557211.619
-- Translation: [0.506, 0.051, 1.301]
-- Rotation: in Quaternion [0.017, 0.709, -0.025, 0.705]
-            in RPY [-1.986, 1.557, -2.045]
-At time 1405557212.437
-- Translation: [0.505, 0.049, 1.301]
-- Rotation: in Quaternion [0.017, 0.709, -0.024, 0.705]
-            in RPY [-1.975, 1.558, -2.033]
-At time 1405557213.663
-- Translation: [0.503, 0.048, 1.301]
-- Rotation: in Quaternion [0.018, 0.708, -0.024, 0.706]
-            in RPY [-1.845, 1.561, -1.905]
-At time 1405557214.065
-- Translation: [0.503, 0.048, 1.301]
-- Rotation: in Quaternion [0.018, 0.708, -0.024, 0.706]
-            in RPY [-1.869, 1.561, -1.929]
+At time 1405610456.307
+- Translation: [1.250, -0.113, 0.972]
+- Rotation: in Quaternion [-0.579, 0.014, 0.815, -0.015]
+            in RPY [0.122, 1.234, -3.017]
+At time 1405610457.111
+- Translation: [1.250, -0.114, 0.972]
+- Rotation: in Quaternion [-0.580, 0.014, 0.815, -0.015]
+            in RPY [0.120, 1.234, -3.020]
+At time 1405610458.351
+- Translation: [1.248, -0.114, 0.973]
+- Rotation: in Quaternion [-0.580, 0.014, 0.814, -0.015]
+            in RPY [0.122, 1.236, -3.017]
+At time 1405610459.149
+- Translation: [1.247, -0.116, 0.974]
+- Rotation: in Quaternion [-0.581, 0.015, 0.814, -0.014]
+            in RPY [0.123, 1.237, -3.019]
+At time 1405610460.370
+- Translation: [1.248, -0.115, 0.974]
+- Rotation: in Quaternion [-0.581, 0.015, 0.814, -0.014]
+            in RPY [0.125, 1.237, -3.018]
+At time 1405610461.196
+- Translation: [1.249, -0.117, 0.974]
+- Rotation: in Quaternion [-0.580, 0.015, 0.814, -0.013]
+            in RPY [0.120, 1.236, -3.023]
+At time 1405610462.411
+- Translation: [1.250, -0.113, 0.974]
+- Rotation: in Quaternion [-0.580, 0.014, 0.814, -0.016]
+            in RPY [0.125, 1.235, -3.015]
+At time 1405610463.220
+- Translation: [1.250, -0.111, 0.974]
+- Rotation: in Quaternion [-0.579, 0.014, 0.815, -0.017]
+            in RPY [0.130, 1.234, -3.008]
+At time 1405610464.426
+- Translation: [1.249, -0.106, 0.974]
+- Rotation: in Quaternion [-0.580, 0.012, 0.814, -0.020]
+            in RPY [0.134, 1.234, -2.996]
+At time 1405610465.232
+- Translation: [1.249, -0.107, 0.975]
+- Rotation: in Quaternion [-0.580, 0.013, 0.814, -0.021]
+            in RPY [0.136, 1.234, -2.993]
