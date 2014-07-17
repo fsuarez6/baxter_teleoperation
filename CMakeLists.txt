@@ -17,6 +17,8 @@ catkin_package(CATKIN_DEPENDS
   baxter_interface
   baxter_moveit_config
   baxter_tools
+  collada_urdf
+  image_view
   moveit_ikfast
   moveit_kinematics_interface
   rate_position_controller

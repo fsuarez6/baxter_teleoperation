@@ -22,6 +22,8 @@
   <run_depend>baxter_interface</run_depend>
   <run_depend>baxter_moveit_config</run_depend>
   <run_depend>baxter_tools</run_depend>
+  <run_depend>collada_urdf</run_depend>
+  <run_depend>image_view</run_depend>
   <run_depend>moveit_ikfast</run_depend>
   <run_depend>moveit_kinematics_interface</run_depend>
   <run_depend>rate_position_controller</run_depend>
