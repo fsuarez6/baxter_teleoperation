@@ -1,40 +1,40 @@
-At time 1405610456.307
-- Translation: [1.250, -0.113, 0.972]
-- Rotation: in Quaternion [-0.579, 0.014, 0.815, -0.015]
-            in RPY [0.122, 1.234, -3.017]
-At time 1405610457.111
-- Translation: [1.250, -0.114, 0.972]
-- Rotation: in Quaternion [-0.580, 0.014, 0.815, -0.015]
-            in RPY [0.120, 1.234, -3.020]
-At time 1405610458.351
-- Translation: [1.248, -0.114, 0.973]
-- Rotation: in Quaternion [-0.580, 0.014, 0.814, -0.015]
-            in RPY [0.122, 1.236, -3.017]
-At time 1405610459.149
-- Translation: [1.247, -0.116, 0.974]
-- Rotation: in Quaternion [-0.581, 0.015, 0.814, -0.014]
-            in RPY [0.123, 1.237, -3.019]
-At time 1405610460.370
-- Translation: [1.248, -0.115, 0.974]
-- Rotation: in Quaternion [-0.581, 0.015, 0.814, -0.014]
-            in RPY [0.125, 1.237, -3.018]
-At time 1405610461.196
-- Translation: [1.249, -0.117, 0.974]
-- Rotation: in Quaternion [-0.580, 0.015, 0.814, -0.013]
-            in RPY [0.120, 1.236, -3.023]
-At time 1405610462.411
-- Translation: [1.250, -0.113, 0.974]
-- Rotation: in Quaternion [-0.580, 0.014, 0.814, -0.016]
-            in RPY [0.125, 1.235, -3.015]
-At time 1405610463.220
-- Translation: [1.250, -0.111, 0.974]
-- Rotation: in Quaternion [-0.579, 0.014, 0.815, -0.017]
-            in RPY [0.130, 1.234, -3.008]
-At time 1405610464.426
-- Translation: [1.249, -0.106, 0.974]
-- Rotation: in Quaternion [-0.580, 0.012, 0.814, -0.020]
-            in RPY [0.134, 1.234, -2.996]
-At time 1405610465.232
-- Translation: [1.249, -0.107, 0.975]
-- Rotation: in Quaternion [-0.580, 0.013, 0.814, -0.021]
-            in RPY [0.136, 1.234, -2.993]
+At time 1405696813.423
+- Translation: [0.612, -0.018, 1.021]
+- Rotation: in Quaternion [0.017, 0.698, -0.002, 0.716]
+            in RPY [0.730, 1.538, 0.704]
+At time 1405696814.205
+- Translation: [0.615, -0.016, 1.020]
+- Rotation: in Quaternion [0.013, 0.699, -0.000, 0.715]
+            in RPY [0.716, 1.542, 0.697]
+At time 1405696815.438
+- Translation: [0.613, -0.012, 1.019]
+- Rotation: in Quaternion [0.012, 0.699, -0.002, 0.715]
+            in RPY [0.591, 1.543, 0.571]
+At time 1405696816.244
+- Translation: [0.613, -0.011, 1.019]
+- Rotation: in Quaternion [0.012, 0.699, -0.002, 0.715]
+            in RPY [0.521, 1.544, 0.502]
+At time 1405696817.408
+- Translation: [0.613, -0.012, 1.019]
+- Rotation: in Quaternion [0.011, 0.699, -0.002, 0.715]
+            in RPY [0.536, 1.544, 0.516]
+At time 1405696818.281
+- Translation: [0.615, -0.011, 1.019]
+- Rotation: in Quaternion [0.011, 0.699, -0.002, 0.715]
+            in RPY [0.524, 1.545, 0.505]
+At time 1405696819.114
+- Translation: [0.613, -0.012, 1.019]
+- Rotation: in Quaternion [0.011, 0.699, -0.001, 0.715]
+            in RPY [0.537, 1.544, 0.519]
+At time 1405696820.312
+- Translation: [0.614, -0.012, 1.019]
+- Rotation: in Quaternion [0.011, 0.699, -0.001, 0.715]
+            in RPY [0.554, 1.544, 0.538]
+At time 1405696821.124
+- Translation: [0.613, -0.011, 1.019]
+- Rotation: in Quaternion [0.010, 0.699, -0.001, 0.715]
+            in RPY [0.522, 1.543, 0.507]
+At time 1405696821.923
+- Translation: [0.612, -0.012, 1.019]
+- Rotation: in Quaternion [0.011, 0.698, -0.001, 0.716]
+            in RPY [0.520, 1.543, 0.503]
