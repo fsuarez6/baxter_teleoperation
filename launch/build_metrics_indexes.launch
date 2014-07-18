@@ -1,0 +1,12 @@
+<launch>
+  <node name="$(anon build_index)" pkg="baxter_teleop" type="build_metrics_index" output="screen">
+    <param name="database" value="false"/>
+    <param name="folder_key" value="6575ecddff8e44245a6d08f7e6a232f6"/>
+    <param name="file_key" value="dc12ea999aabf684e4dab37176899cd2"/>
+  </node>
+  <node name="$(anon build_index)" pkg="baxter_teleop" type="build_metrics_index" output="screen">
+    <param name="database" value="false"/>
+    <param name="folder_key" value="6575ecddff8e44245a6d08f7e6a232f6"/>
+    <param name="file_key" value="119f22cd837e05b6686bbe6d990b6eb4"/>
+  </node>
+</launch>
