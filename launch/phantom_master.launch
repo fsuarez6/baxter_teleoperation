@@ -1,10 +1,12 @@
 <launch>
+  <!-- Math contants -->
+  <arg name="M_PI" default="3.141592654"/>
+  <arg name="M_PI_2" default="1.570796327"/>
+  
   <arg name="master_name" default="haptic_device"/>
   <arg name="slave_name" default="baxter"/>
   <arg name="ref_frame" default="base"/>
-  <arg name="rpy_offset" default="[3.14159, 0, 0]"/>
-
-<!-- -1.5708 -->
+  <arg name="rpy_offset" default="[0, 0, 0]"/>
   
   <!-- Phantom node -->
   <node name="omni_state" pkg="omni_common" type="omni_state" output="screen"> 
