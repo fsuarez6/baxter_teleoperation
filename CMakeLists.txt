@@ -28,7 +28,7 @@ find_package(Eigen REQUIRED)
 find_package(Boost REQUIRED system filesystem date_time thread)
 find_package(HDF5 REQUIRED)
 
-include_directories(SYSTEM ${Boost_INCLUDE_DIR} ${EIGEN_INCLUDE_DIRS})
+include_directories(SYSTEM ${Boost_INCLUDE_DIR} ${EIGEN_INCLUDE_DIRS} ${HDF5_INCLUDE_DIR})
 include_directories(${catkin_INCLUDE_DIRS})
 link_directories(${catkin_LIBRARY_DIRS})
 
@@ -37,5 +37,5 @@ target_link_libraries(build_metrics_index ${catkin_LIBRARIES} ${Boost_LIBRARIES}
 add_dependencies(build_metrics_index grips_msgs_gencpp)
 
 add_executable(cartesian_controller src/cartesian_controller.cpp)
-target_link_libraries(cartesian_controller ${catkin_LIBRARIES} ${Boost_LIBRARIES})
+target_link_libraries(cartesian_controller ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${HDF5_LIBRARIES})
 add_dependencies(cartesian_controller baxter_core_msgs_gencpp)
