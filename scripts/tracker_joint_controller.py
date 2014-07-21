@@ -22,168 +22,105 @@
 """
 
 import rospy
+import PyKDL as KDL
+from math import acos, asin, pi
+# Messages
 from sensor_msgs.msg import JointState
 from skeleton_markers.msg import Skeleton
 from std_msgs.msg import Float64
-import PyKDL as KDL
-from math import acos, asin, pi
+from baxter_core_msgs.msg import JointCommand
+
+
+BODY_LINKS = ('head', 
+              'neck', 
+              'torso', 
+              'left_shoulder', 
+              'left_elbow', 
+              'left_hand', 
+              'right_shoulder', 
+              'right_elbow', 
+              'right_hand', 
+              'left_hip', 
+              'left_knee', 
+              'left_foot', 
+              'right_hip', 
+              'right_knee', 
+              'right_foot')
+
+BODY_JOINTS = { 'neck':       {'parent':'torso',          'child':'head'},
+                'l_shoulder': {'parent':'torso',          'child':'left_shoulder'},
+                'l_elbow':    {'parent':'left_shoulder',  'child':'left_elbow'},
+                'l_wrist':    {'parent':'left_elbow',     'child':'left_hand'},
+                'r_shoulder': {'parent':'torso',          'child':'right_shoulder'},
+                'r_elbow':    {'parent':'right_shoulder', 'child':'right_elbow'},
+                'r_wrist':    {'parent':'right_elbow',    'child':'right_hand'}
+              }
 
 class TrackerJointController():
   def __init__(self):
     rospy.init_node('tracker_joint_controller')
-    rospy.on_shutdown(self.shutdown)    
+    rospy.on_shutdown(self.shutdown)
     rospy.loginfo("Initializing Joint Controller Node...")
+    # Read from the parameter server
     self.rate = rospy.get_param('~joint_controller_rate', 5)
-    rate = rospy.Rate(self.rate)
-    
-    # The namespace may be set by the servo controller (usually null)
-    namespace = rospy.get_namespace()    
-    self.joints = rospy.get_param(namespace + '/joints', '')
     self.skel_to_joint_map = rospy.get_param("~skel_to_joint_map", dict())
-    self.use_real_robot = rospy.get_param('~use_real_robot', False)    
-    self.default_joint_speed = rospy.get_param('~default_joint_speed', 0.5)    
-    self.tracker_commands = rospy.get_param('~tracker_commands', ['STOP', 'TELEOP_JOINTS'])     
-    self.HALF_PI = pi / 2.0
-
-    # Subscribe to the skeleton topic.
-    rospy.Subscriber('skeleton', Skeleton, self.skeleton_handler)
+    # Validate body joint names
+    for key in self.skel_to_joint_map.keys():
+      if key not in BODY_JOINTS.keys():
+        rospy.logwarn('Invalid body joint name [%s]' % key)
+        del self.skel_to_joint_map[key]
+    # TODO: Validate the robot joint names
     
-    # Store the current skeleton configuration in a local dictionary.
+    # Initial values
     self.skeleton = dict()
     self.skeleton['confidence'] = dict()
     self.skeleton['position'] = dict()
     self.skeleton['orientation'] = dict()
+    self.left_command = JointCommand()
+    self.right_command = JointCommand()
 
-    # Use the joint_state publisher for a fake robot
-    self.joint_state_pub = rospy.Publisher('/joint_states', JointState)
+    # Setup publishers / subscribers
+    self.left_command_pub = rospy.Publisher('/robot/limb/left/joint_command', JointCommand)
+    self.right_command_pub = rospy.Publisher('/robot/limb/right/joint_command', JointCommand)
+    rospy.Subscriber('skeleton', Skeleton, self.skeleton_handler)
     
+    rate = rospy.Rate(self.rate)
     while not rospy.is_shutdown():
       self.teleop_joints()
-      self.joint_state_pub.publish(self.joint_state)
+      self.left_command_pub.publish(self.left_command)
+      self.right_command_pub.publish(self.right_command)
       rate.sleep()
-          
+
   def teleop_joints(self):
-      # Fixed Joints: Set position to 0 radians.
+    self.left_command = JointCommand()
+    self.right_command = JointCommand()
+    self.left_command.mode = self.left_command.POSITION_MODE
+    self.right_command.mode = self.right_command.POSITION_MODE
+    for name in self.skel_to_joint_map.keys():
+      parent = BODY_JOINTS[name]['parent']
+      child = BODY_JOINTS[name]['child']
       try:
-          self.cmd_joints.position[self.cmd_joints.name.index('left_arm_shoulder_roll_joint')] = 0
-          self.cmd_joints.velocity[self.cmd_joints.name.index('left_arm_shoulder_roll_joint')] = 2
-          
-          self.cmd_joints.position[self.cmd_joints.name.index('left_arm_wrist_flex_joint')] = 0
-          self.cmd_joints.velocity[self.cmd_joints.name.index('left_arm_wrist_flex_joint')] = 2
-      except KeyError:
-          pass
-      
-      try:
-          self.cmd_joints.position[self.cmd_joints.name.index('right_arm_shoulder_roll_joint')] = 0
-          self.cmd_joints.velocity[self.cmd_joints.name.index('right_arm_shoulder_roll_joint')] = 2
-          
-          self.cmd_joints.position[self.cmd_joints.name.index('right_arm_wrist_flex_joint')] = 0
-          self.cmd_joints.velocity[self.cmd_joints.name.index('right_arm_wrist_flex_joint')] = 2
-      except KeyError:
-          pass
-                  
-      # Torso Rotation
-      try:
-          torso_quaternion = self.skeleton['orientation']['torso']
-          torso_rpy = torso_quaternion.GetRPY()
-          self.cmd_joints.position[self.cmd_joints.name.index(self.skel_to_joint_map['torso'])] = torso_rpy[1] / 2.0
-          self.cmd_joints.velocity[self.cmd_joints.name.index('torso_joint')] = self.default_joint_speed
-      except:
-          pass
-      
-      # Head Pan
-      try:
-          head_quaternion = self.skeleton['orientation']['head']
-          head_rpy = head_quaternion.GetRPY()
-          self.cmd_joints.position[self.cmd_joints.name.index('head_pan_joint')] = head_rpy[1]
-          self.cmd_joints.velocity[self.cmd_joints.name.index('head_pan_joint')] = self.default_joint_speed
-      except:
-          pass
-      
-      # Head Tilt
-      try:
-          self.cmd_joints.position[self.cmd_joints.name.index('head_tilt_joint')] = -head_rpy[0]
-          self.cmd_joints.velocity[self.cmd_joints.name.index('head_tilt_joint')] = self.default_joint_speed
-      except:
-          pass
-      
-      # Left Arm
-      try:
-          left_shoulder_neck = self.skeleton['position']['neck'] - self.skeleton['position']['left_shoulder']
-          left_shoulder_elbow = self.skeleton['position']['left_elbow'] - self.skeleton['position']['left_shoulder']
-          left_arm_elbow_flex_hand = self.skeleton['position']['left_hand'] - self.skeleton['position']['left_elbow']
-          left_shoulder_hand = self.skeleton['position']['left_hand'] - self.skeleton['position']['left_shoulder']
-          
-          left_shoulder_neck.Normalize()
-          left_shoulder_elbow.Normalize()
-          lh = left_arm_elbow_flex_hand.Normalize()
-          left_shoulder_hand.Normalize()
-
-          left_arm_shoulder_lift_angle = asin(left_shoulder_elbow.y()) + self.HALF_PI
-          left_arm_shoulder_pan_angle = asin(left_arm_elbow_flex_hand.x())
-          left_arm_elbow_flex_angle = -acos(KDL.dot(left_shoulder_elbow, left_arm_elbow_flex_hand))
-          left_arm_wrist_flex_angle = -left_arm_elbow_flex_angle / 2.0
-          left_arm_elbow_flex_angle = left_arm_elbow_flex_angle / 4.0
-          
-          self.cmd_joints.position[self.cmd_joints.name.index('left_arm_shoulder_lift_joint')] = left_arm_shoulder_lift_angle
-          self.cmd_joints.velocity[self.cmd_joints.name.index('left_arm_shoulder_lift_joint')] = self.default_joint_speed
-          
-          self.cmd_joints.position[self.cmd_joints.name.index('left_arm_shoulder_pan_joint')] = -left_arm_shoulder_pan_angle
-          self.cmd_joints.velocity[self.cmd_joints.name.index('left_arm_shoulder_pan_joint')] = self.default_joint_speed
-          
-          self.cmd_joints.position[self.cmd_joints.name.index('left_arm_elbow_flex_joint')] = left_arm_elbow_flex_angle
-          self.cmd_joints.velocity[self.cmd_joints.name.index('left_arm_elbow_flex_joint')] = self.default_joint_speed                                   
-      
-          self.cmd_joints.position[self.cmd_joints.name.index('left_arm_wrist_flex_joint')] = left_arm_wrist_flex_angle
-          self.cmd_joints.velocity[self.cmd_joints.name.index('left_arm_wrist_flex_joint')] = self.default_joint_speed
-
-          left_arm_shoulder_roll_angle = acos(KDL.dot(left_shoulder_elbow, left_shoulder_neck))
-          self.cmd_joints.position[self.cmd_joints.name.index('left_arm_shoulder_roll_joint')] = 0
-          self.cmd_joints.velocity[self.cmd_joints.name.index('left_arm_shoulder_roll_joint')] = self.default_joint_speed      
-      except KeyError:
-          pass
-          
-      # Right Arm
-      try:
-          right_shoulder_neck = self.skeleton['position']['neck'] - self.skeleton['position']['right_shoulder']
-          right_shoulder_elbow = self.skeleton['position']['right_elbow'] - self.skeleton['position']['right_shoulder']
-          right_arm_elbow_flex_hand = self.skeleton['position']['right_hand'] - self.skeleton['position']['right_elbow']
-          right_shoulder_hand = self.skeleton['position']['left_hand'] - self.skeleton['position']['left_shoulder']
-          
-          right_shoulder_neck.Normalize()
-          right_shoulder_elbow.Normalize()
-          rh = right_arm_elbow_flex_hand.Normalize()
-          right_shoulder_hand.Normalize()
-
-          right_arm_shoulder_lift_angle = -(asin(right_shoulder_elbow.y()) + self.HALF_PI)
-          right_arm_shoulder_pan_angle = -asin(right_arm_elbow_flex_hand.x())
-          right_arm_elbow_flex_angle = acos(KDL.dot(right_shoulder_elbow, right_arm_elbow_flex_hand))
-          right_arm_wrist_flex_angle = -right_arm_elbow_flex_angle / 2.0
-          right_arm_elbow_flex_angle = right_arm_elbow_flex_angle / 4.0
-                          
-          self.cmd_joints.position[self.cmd_joints.name.index('right_arm_shoulder_lift_joint')] = right_arm_shoulder_lift_angle
-          self.cmd_joints.velocity[self.cmd_joints.name.index('right_arm_shoulder_lift_joint')] = self.default_joint_speed
-          
-          self.cmd_joints.position[self.cmd_joints.name.index('right_arm_shoulder_pan_joint')] = right_arm_shoulder_pan_angle
-          self.cmd_joints.velocity[self.cmd_joints.name.index('right_arm_shoulder_pan_joint')] = self.default_joint_speed
-          
-          self.cmd_joints.position[self.cmd_joints.name.index('right_arm_elbow_flex_joint')] = right_arm_elbow_flex_angle
-          self.cmd_joints.velocity[self.cmd_joints.name.index('right_arm_elbow_flex_joint')] = self.default_joint_speed
-          
-          self.cmd_joints.position[self.cmd_joints.name.index('right_arm_wrist_flex_joint')] = right_arm_wrist_flex_angle
-          self.cmd_joints.velocity[self.cmd_joints.name.index('right_arm_wrist_flex_joint')] = self.default_joint_speed
-
-          right_arm_shoulder_roll_angle = -asin(right_shoulder_hand.x())
-          self.cmd_joints.position[self.cmd_joints.name.index('right_arm_shoulder_roll_joint')] = 0
-          self.cmd_joints.velocity[self.cmd_joints.name.index('right_arm_shoulder_roll_joint')] = self.default_joint_speed
+        q_parent = self.skeleton['orientation'][parent]
+        q_child = self.skeleton['orientation'][child]
+        q_joint = KDL.Rotation.Inverse(q_parent) * q_child
+        rpy = q_joint.GetRPY()
+        for i,joint in enumerate(self.skel_to_joint_map[name]):
+          if joint != 'no_joint':
+            if 'left_' in joint:
+              self.left_command.names.append(joint)
+              self.left_command.command.append(rpy[i])
+            elif 'right_' in joint:
+              self.right_command.names.append(joint)
+              self.right_command.command.append(rpy[i])
       except KeyError:
         pass
-          
+
   def skeleton_handler(self, msg):
-    for index, joint in enumerate(msg.name):
+    for i, joint in enumerate(msg.name):
       self.skeleton['confidence'][joint] = msg.confidence[i]
       self.skeleton['position'][joint] = KDL.Vector(msg.position[i].x, msg.position[i].y, msg.position[i].z)
-      self.skeleton['orientation'][joint] = KDL.Rotation.Quaternion(msg.orientation[i].x, msg.orientation[i].y, msg.orientation[i].z, msg.orientation[i].w)
+      self.skeleton['orientation'][joint] = KDL.Rotation.Quaternion(msg.orientation[i].x, msg.orientation[i].y, 
+                                                                    msg.orientation[i].z, msg.orientation[i].w)
 
   def shutdown(self):
     rospy.loginfo('Shutting down Tracker Joint Controller Node.')

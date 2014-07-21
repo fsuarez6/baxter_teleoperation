@@ -1,25 +1,12 @@
-joint_controller_rate: 2
-default_joint_speed: 0.6
+joint_controller_rate: 100
 
-use_real_robot: False
-
-fixed_frame: openni_depth_frame
-
-skel_to_joint_map: {
-   head: no_joint,
-   neck: no_joint,
-   torso: no_joint,
-   left_shoulder: left_s1,
-   left_elbow: left_e1,
-   left_hand: left_w1,
-   right_shoulder: right_s1,
-   right_elbow: right_e1,
-   right_hand: right_w1,
-   left_hip: no_joint,
-   left_knee: no_joint,
-   left_foot: no_joint,
-   right_hip: no_joint,
-   right_knee: no_joint,
-   right_foot: no_joint
-}
+# joint: [roll, pitch, yaw]
+skel_to_joint_map:
+  neck:       [no_joint, no_joint, no_joint]
+  l_shoulder: [no_joint, left_s0, left_s1]
+  l_elbow:    [no_joint, no_joint, no_joint]
+  l_wrist:    [no_joint, no_joint, no_joint]
+  r_shoulder: [no_joint, no_joint, no_joint]
+  r_elbow:    [no_joint, no_joint, no_joint]
+  r_wrist:    [no_joint, no_joint, no_joint]
 

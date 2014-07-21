@@ -1,0 +1,5 @@
+<launch>
+  <node name="tracker_joint_controller" pkg="baxter_teleop" type="tracker_joint_controller.py" output="screen">
+    <rosparam command="load" file="$(find baxter_teleop)/config/tracker_params.yaml" />
+  </node>
+</launch>
