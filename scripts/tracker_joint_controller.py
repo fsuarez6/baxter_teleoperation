@@ -23,12 +23,27 @@
 
 import rospy
 import PyKDL as KDL
-from math import acos, asin, pi
+from math import pi, copysign
+import numpy as np
 # Messages
-from sensor_msgs.msg import JointState
 from skeleton_markers.msg import Skeleton
-from std_msgs.msg import Float64
 from baxter_core_msgs.msg import JointCommand
+
+class TextColors:
+  HEADER = '\033[95m'
+  OKBLUE = '\033[94m'
+  OKGREEN = '\033[92m'
+  WARNING = '\033[93m'
+  FAIL = '\033[91m'
+  ENDC = '\033[0m'
+
+  def disable(self):
+    self.HEADER = ''
+    self.OKBLUE = ''
+    self.OKGREEN = ''
+    self.WARNING = ''
+    self.FAIL = ''
+    self.ENDC = ''
 
 
 BODY_LINKS = ('head', 
@@ -58,11 +73,10 @@ BODY_JOINTS = { 'neck':       {'parent':'torso',          'child':'head'},
 
 class TrackerJointController():
   def __init__(self):
-    rospy.init_node('tracker_joint_controller')
     rospy.on_shutdown(self.shutdown)
-    rospy.loginfo("Initializing Joint Controller Node...")
+    self.loginfo("Initializing Joint Controller Node...")
     # Read from the parameter server
-    self.rate = rospy.get_param('~joint_controller_rate', 5)
+    self.publish_rate = rospy.get_param('~joint_controller_rate', 30)
     self.skel_to_joint_map = rospy.get_param("~skel_to_joint_map", dict())
     # Validate body joint names
     for key in self.skel_to_joint_map.keys():
@@ -72,26 +86,42 @@ class TrackerJointController():
     # TODO: Validate the robot joint names
     
     # Initial values
+    self.joint_orientation = dict()
+    self.joint_rpy = dict()
     self.skeleton = dict()
     self.skeleton['confidence'] = dict()
     self.skeleton['position'] = dict()
     self.skeleton['orientation'] = dict()
     self.left_command = JointCommand()
     self.right_command = JointCommand()
+    self.timer = None
+    self.teleoperate = False
+    self.calibrated = True
 
     # Setup publishers / subscribers
     self.left_command_pub = rospy.Publisher('/robot/limb/left/joint_command', JointCommand)
     self.right_command_pub = rospy.Publisher('/robot/limb/right/joint_command', JointCommand)
-    rospy.Subscriber('skeleton', Skeleton, self.skeleton_handler)
+    rospy.Subscriber('skeleton', Skeleton, self.cb_skeleton_handler)
+    # Start the timer that will publish the robot commands
+    self.timer = rospy.Timer(rospy.Duration(1.0/self.publish_rate), self.process_skeleton)
     
-    rate = rospy.Rate(self.rate)
+    rate = rospy.Rate(self.publish_rate)
     while not rospy.is_shutdown():
-      self.teleop_joints()
-      self.left_command_pub.publish(self.left_command)
-      self.right_command_pub.publish(self.right_command)
+      if self.confident(BODY_LINKS[:7]):
+        if self.psi_pose(0.5):
+          self.calibrated = True
+          self.teleoperate = False
+        elif self.arms_crossed():
+          self.teleoperate = False
+          self.calibrated = False
+        elif self.calibrated:
+          self.teleoperate = True
+      else:
+        self.calibrated = False
+        self.teleoperate = False
       rate.sleep()
 
-  def teleop_joints(self):
+  def process_skeleton(self, event):
     self.left_command = JointCommand()
     self.right_command = JointCommand()
     self.left_command.mode = self.left_command.POSITION_MODE
@@ -102,8 +132,9 @@ class TrackerJointController():
       try:
         q_parent = self.skeleton['orientation'][parent]
         q_child = self.skeleton['orientation'][child]
-        q_joint = KDL.Rotation.Inverse(q_parent) * q_child
-        rpy = q_joint.GetRPY()
+        self.joint_orientation[name] = KDL.Rotation.Inverse(q_parent) * q_child
+        self.joint_rpy[name] = self.joint_orientation[name].GetRPY()
+        rpy = self.joint_rpy[name]
         for i,joint in enumerate(self.skel_to_joint_map[name]):
           if joint != 'no_joint':
             if 'left_' in joint:
@@ -114,8 +145,42 @@ class TrackerJointController():
               self.right_command.command.append(rpy[i])
       except KeyError:
         pass
+    if self.teleoperate:
+      self.left_command_pub.publish(self.left_command)
+      self.right_command_pub.publish(self.right_command)
+    
+  def arms_crossed(self):
+    confident = self.confident(['left_elbow', 'right_elbow', 'left_hand', 'right_hand'])
+    try:
+      elbows_sign = copysign(1.0, self.skeleton['position']['left_elbow'].x() - self.skeleton['position']['right_elbow'].x())
+      hands_sign = copysign(1.0, self.skeleton['position']['left_hand'].x() - self.skeleton['position']['right_hand'].x())
+      return (confident and (elbows_sign != hands_sign))
+    except KeyError:
+      return False
+    
+  def psi_pose(self, tolerance):
+    result = False
+    confident = self.confident(['left_shoulder','right_shoulder','left_elbow','right_elbow','left_hand','right_hand'])
+    try:
+      left_arm = [self.joint_rpy['l_shoulder'][1], self.joint_rpy['l_shoulder'][2], self.joint_rpy['l_elbow'][1]]
+      right_arm = [self.joint_rpy['r_shoulder'][1], self.joint_rpy['r_shoulder'][2], self.joint_rpy['r_elbow'][1]]
+      target = [0,0,-pi/2,0,0,pi/2]
+      in_psi_pose = np.allclose(left_arm + right_arm, target, atol=tolerance)
+      result = (confident and in_psi_pose)
+    except KeyError:
+      result = False
+    return result
 
-  def skeleton_handler(self, msg):
+  def confident(self, joints):
+    try:
+      for joint in joints:
+          if self.skeleton['confidence'][joint] < 0.5:
+              return False
+      return True
+    except KeyError:
+      return False
+
+  def cb_skeleton_handler(self, msg):
     for i, joint in enumerate(msg.name):
       self.skeleton['confidence'][joint] = msg.confidence[i]
       self.skeleton['position'][joint] = KDL.Vector(msg.position[i].x, msg.position[i].y, msg.position[i].z)
@@ -123,9 +188,16 @@ class TrackerJointController():
                                                                     msg.orientation[i].z, msg.orientation[i].w)
 
   def shutdown(self):
-    rospy.loginfo('Shutting down Tracker Joint Controller Node.')
-        
+    self.loginfo('Shutting down Tracker Joint Controller Node.')
+    # Stop the publisher timer
+    self.timer.shutdown() 
+  
+  def loginfo(self, msg):
+    rospy.loginfo(TextColors().OKBLUE + str(msg) + TextColors().ENDC)
+
+
 if __name__ == '__main__':
+  rospy.init_node('tracker_joint_controller', log_level=rospy.WARN)
   try:
     TrackerJointController()
   except rospy.ROSInterruptException:
