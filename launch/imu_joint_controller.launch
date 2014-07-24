@@ -1,0 +1,15 @@
+<launch>
+  
+  <!-- Enable baxter robot -->
+  <node name="enable_baxter_robot" pkg="baxter_tools" type="enable_robot.py" output="screen" args="-e"/>
+  
+  <!-- PrioVR node -->
+  <node name="imu_joint_controller" pkg="priovr" type="imu_joint_controller.py" output="screen">
+    <rosparam command="load" file="$(find priovr)/config/priovr_common.yaml"/>
+    <rosparam command="load" file="$(find priovr)/config/baxter.yaml"/>
+  </node>
+  
+  <!-- Show in Rviz -->
+  <node name="rviz" pkg="rviz" type="rviz" output="screen" args="-d $(find baxter_teleop)/config/cartesian_controller.rviz"/>
+  
+</launch>
