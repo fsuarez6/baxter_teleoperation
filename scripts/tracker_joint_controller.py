@@ -22,12 +22,16 @@
 """
 
 import rospy
-import PyKDL as KDL
 from math import pi, copysign
 import numpy as np
+# PyKDL staff
+import PyKDL as KDL
+from tf_conversions import posemath
+from math import atan2
 # Messages
-from skeleton_markers.msg import Skeleton
+from k4w2_msgs.msg import SkeletonState, SkeletonRaw, RPY
 from baxter_core_msgs.msg import JointCommand
+from geometry_msgs.msg import PoseStamped
 
 class TextColors:
   HEADER = '\033[95m'
@@ -45,6 +49,9 @@ class TextColors:
     self.FAIL = ''
     self.ENDC = ''
 
+sr = SkeletonRaw()
+LEFT_ARM = [sr.ShoulderLeft, sr.ElbowLeft, sr.WristLeft, sr.HandLeft]
+RIGHT_ARM = [sr.ShoulderRight, sr.ElbowRight, sr.WristRight, sr.HandRight]
 
 BODY_LINKS = ('head', 
               'neck', 
@@ -62,13 +69,10 @@ BODY_LINKS = ('head',
               'right_knee', 
               'right_foot')
 
-BODY_JOINTS = { 'neck':       {'parent':'torso',          'child':'head'},
-                'l_shoulder': {'parent':'torso',          'child':'left_shoulder'},
-                'l_elbow':    {'parent':'left_shoulder',  'child':'left_elbow'},
-                'l_wrist':    {'parent':'left_elbow',     'child':'left_hand'},
-                'r_shoulder': {'parent':'torso',          'child':'right_shoulder'},
-                'r_elbow':    {'parent':'right_shoulder', 'child':'right_elbow'},
-                'r_wrist':    {'parent':'right_elbow',    'child':'right_hand'}
+BODY_JOINTS = { 'neck':       {'parent':sr.SpineShoulder, 'own':sr.Neck,          'child':sr.Head},
+                'l_shoulder': {'parent':sr.ShoulderRight, 'own':sr.ShoulderLeft,  'child':sr.ElbowLeft},
+                'l_elbow':    {'parent':sr.ShoulderLeft,  'own':sr.ElbowLeft,     'child':sr.WristLeft}
+                #~ 'r_shoulder': {'parent':sr.ShoulderLeft,  'own':sr.ShoulderRight, 'child':sr.ElbowRight}
               }
 
 class TrackerJointController():
@@ -86,12 +90,8 @@ class TrackerJointController():
     # TODO: Validate the robot joint names
     
     # Initial values
-    self.joint_orientation = dict()
-    self.joint_rpy = dict()
-    self.skeleton = dict()
-    self.skeleton['confidence'] = dict()
-    self.skeleton['position'] = dict()
-    self.skeleton['orientation'] = dict()
+    self.relative_frame = dict()
+    self.skeleton = SkeletonState()
     self.left_command = JointCommand()
     self.right_command = JointCommand()
     self.timer = None
@@ -101,16 +101,22 @@ class TrackerJointController():
     # Setup publishers / subscribers
     self.left_command_pub = rospy.Publisher('/robot/limb/left/joint_command', JointCommand)
     self.right_command_pub = rospy.Publisher('/robot/limb/right/joint_command', JointCommand)
-    rospy.Subscriber('skeleton', Skeleton, self.cb_skeleton_handler)
+    rospy.Subscriber('kinect/skeleton', SkeletonState, self.cb_skeleton_handler)
     # Start the timer that will publish the robot commands
     self.timer = rospy.Timer(rospy.Duration(1.0/self.publish_rate), self.process_skeleton)
     
+    # Debug
+    self.pose_pub = rospy.Publisher('/test/pose', PoseStamped)
+    self.l_shoulder_pub = rospy.Publisher('/test/l_shoulder', RPY)
+    self.l_elbow_pub = rospy.Publisher('/test/l_elbow', RPY)
+    self.l_wrist_pub = rospy.Publisher('/test/l_wrist', RPY)
+    
     rate = rospy.Rate(self.publish_rate)
     while not rospy.is_shutdown():
-      if self.confident(BODY_LINKS[:7]):
-        if self.psi_pose(0.5):
+      if self.confident(LEFT_ARM + RIGHT_ARM):
+        if self.confident(LEFT_ARM + RIGHT_ARM):
           self.calibrated = True
-          self.teleoperate = False
+          self.teleoperate = True
         elif self.arms_crossed():
           self.teleoperate = False
           self.calibrated = False
@@ -119,48 +125,58 @@ class TrackerJointController():
       else:
         self.calibrated = False
         self.teleoperate = False
+      #~ print self.calibrated, self.teleoperate
       rate.sleep()
-
+  
+  def point_to_vector(self, point):
+    return KDL.Vector(point.x, point.y, point.z)
+  
   def process_skeleton(self, event):
+    if not self.confident(LEFT_ARM + RIGHT_ARM):
+      return
     self.left_command = JointCommand()
     self.right_command = JointCommand()
     self.left_command.mode = self.left_command.POSITION_MODE
     self.right_command.mode = self.right_command.POSITION_MODE
     for name in self.skel_to_joint_map.keys():
       parent = BODY_JOINTS[name]['parent']
+      own = BODY_JOINTS[name]['own']
       child = BODY_JOINTS[name]['child']
-      try:
-        q_parent = self.skeleton['orientation'][parent]
-        q_child = self.skeleton['orientation'][child]
-        self.joint_orientation[name] = KDL.Rotation.Inverse(q_parent) * q_child
-        self.joint_rpy[name] = self.joint_orientation[name].GetRPY()
-        rpy = self.joint_rpy[name]
-        for i,joint in enumerate(self.skel_to_joint_map[name]):
-          if joint != 'no_joint':
-            if 'left_' in joint:
-              self.left_command.names.append(joint)
-              self.left_command.command.append(rpy[i])
-            elif 'right_' in joint:
-              self.right_command.names.append(joint)
-              self.right_command.command.append(rpy[i])
-      except KeyError:
-        pass
+      parent_pos = self.point_to_vector(self.skeleton.pose[parent].position)
+      own_pos = self.point_to_vector(self.skeleton.pose[own].position)
+      child_pos = self.point_to_vector(self.skeleton.pose[child].position)
+      a = child_pos - own_pos   # Direction vector
+      b = own_pos - parent_pos  # Reference vector
+      angle = 2 * atan2((a * b.Norm() - a.Norm() * b).Norm(), (a * b.Norm() + a.Norm() * b).Norm())
+      axis = (a * b) / (a.Norm() * b.Norm())
+      rotation = KDL.Rotation.Rot(axis, angle)
+      rpy = list(rotation.GetRPY())
+      for i,joint in enumerate(self.skel_to_joint_map[name]):
+        if joint != 'no_joint':
+          joint_name = joint
+          if '-' == joint[0]:
+            rpy[i] *= -1.0
+            joint_name = joint[1:]
+          if 'left_' in joint_name:
+            self.left_command.names.append(joint_name)
+            self.left_command.command.append(rpy[i])
+          elif 'right_' in joint_name:
+            self.right_command.names.append(joint_name)
+            self.right_command.command.append(rpy[i])
     if self.teleoperate:
+    #~ if False:
       self.left_command_pub.publish(self.left_command)
       self.right_command_pub.publish(self.right_command)
     
   def arms_crossed(self):
-    confident = self.confident(['left_elbow', 'right_elbow', 'left_hand', 'right_hand'])
-    try:
-      elbows_sign = copysign(1.0, self.skeleton['position']['left_elbow'].x() - self.skeleton['position']['right_elbow'].x())
-      hands_sign = copysign(1.0, self.skeleton['position']['left_hand'].x() - self.skeleton['position']['right_hand'].x())
-      return (confident and (elbows_sign != hands_sign))
-    except KeyError:
-      return False
+    confident = self.confident(LEFT_ARM + RIGHT_ARM)
+    elbows_sign = copysign(1.0, self.skeleton.pose[sr.ElbowRight].position.x - self.skeleton.pose[sr.ElbowLeft].position.x)
+    hands_sign = copysign(1.0, self.skeleton.pose[sr.HandRight].position.x - self.skeleton.pose[sr.Left].position.x)
+    return (confident and (elbows_sign != hands_sign))
     
   def psi_pose(self, tolerance):
     result = False
-    confident = self.confident(['left_shoulder','right_shoulder','left_elbow','right_elbow','left_hand','right_hand'])
+    confident = self.confident(LEFT_ARM + RIGHT_ARM)
     try:
       left_arm = [self.joint_rpy['l_shoulder'][1], self.joint_rpy['l_shoulder'][2], self.joint_rpy['l_elbow'][1]]
       right_arm = [self.joint_rpy['r_shoulder'][1], self.joint_rpy['r_shoulder'][2], self.joint_rpy['r_elbow'][1]]
@@ -172,20 +188,14 @@ class TrackerJointController():
     return result
 
   def confident(self, joints):
-    try:
-      for joint in joints:
-          if self.skeleton['confidence'][joint] < 0.5:
-              return False
-      return True
-    except KeyError:
+    if not self.skeleton.tracking_state:    # Empty list
       return False
+    traking_state = np.array(self.skeleton.tracking_state)[joints]
+    return (sr.TrackingState_NotTracked not in traking_state and sr.TrackingState_Inferred not in traking_state) 
 
   def cb_skeleton_handler(self, msg):
-    for i, joint in enumerate(msg.name):
-      self.skeleton['confidence'][joint] = msg.confidence[i]
-      self.skeleton['position'][joint] = KDL.Vector(msg.position[i].x, msg.position[i].y, msg.position[i].z)
-      self.skeleton['orientation'][joint] = KDL.Rotation.Quaternion(msg.orientation[i].x, msg.orientation[i].y, 
-                                                                    msg.orientation[i].z, msg.orientation[i].w)
+    # TODO: Median filter?
+    self.skeleton = msg
 
   def shutdown(self):
     self.loginfo('Shutting down Tracker Joint Controller Node.')

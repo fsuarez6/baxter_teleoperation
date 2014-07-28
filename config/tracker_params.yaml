@@ -1,12 +1,12 @@
-joint_controller_rate: 2
+joint_controller_rate: 30
 
 # joint: [roll, pitch, yaw]
 skel_to_joint_map:
   neck:       [no_joint, no_joint, no_joint]
-  l_shoulder: [no_joint, left_s0, left_s1]
+  l_shoulder: [no_joint, -left_s0, -left_s1]
   l_elbow:    [no_joint, left_e1, no_joint]
-  l_wrist:    [no_joint, left_w1, no_joint]
-  r_shoulder: [no_joint, no_joint, no_joint]
-  r_elbow:    [no_joint, no_joint, no_joint]
+  l_wrist:    [no_joint, no_joint, no_joint]
+  r_shoulder: [no_joint, right_s0, right_s1]
+  r_elbow:    [no_joint, right_w1, right_e1]
   r_wrist:    [no_joint, no_joint, no_joint]
 
