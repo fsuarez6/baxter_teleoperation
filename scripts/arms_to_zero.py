@@ -35,9 +35,8 @@ if __name__ == '__main__':
   right_msg = JointCommand()
   left_msg.mode = JointCommand().POSITION_MODE
   right_msg.mode = JointCommand().POSITION_MODE
-  zero_position = [0, 0, -pi/2, 0, pi/2, 0, 0]
-  left_msg.command = zero_position
-  right_msg.command = zero_position
+  left_msg.command = [0, 0, -pi/2, 0, 0, 0, 0]
+  right_msg.command = [0, 0, pi/2, 0, 0, 0, 0]
   for joint in joints:
     left_msg.names.append('left_' + joint)
     right_msg.names.append('right_' + joint)
