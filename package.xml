@@ -28,5 +28,6 @@
   <run_depend>moveit_ikfast</run_depend>
   <run_depend>moveit_kinematics_interface</run_depend>
   <run_depend>rate_position_controller</run_depend>
+  <run_depend>urdfdom</run_depend>
 
 </package>

@@ -2,9 +2,7 @@ reference_frame: base
 
 # joint: [roll, pitch, yaw]
 # no_joint when not use
-mapping: 
-  spine:      [no_joint, no_joint, no_joint]
-  neck:       [no_joint, no_joint, no_joint]
+mapping:
   # Left arm
   l_shoulder: [no_joint, no_joint, no_joint]
   l_elbow:    [no_joint, no_joint, no_joint]
