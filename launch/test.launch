@@ -1,0 +1,7 @@
+<launch>
+  <!-- PrioVR node -->
+  <node name="imu_joint_controller" pkg="priovr" type="imu_joint_controller.py" output="screen">
+    <rosparam command="load" file="$(find priovr)/config/priovr_common.yaml"/>
+    <rosparam command="load" file="$(find priovr)/config/baxter.yaml"/>
+  </node>
+</launch>
