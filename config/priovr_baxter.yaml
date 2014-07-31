@@ -10,4 +10,4 @@ mapping:
   # Right arm
   r_shoulder: [right_s0, right_s1, -right_e0]
   r_elbow:    [right_e1, no_joint, -right_w0]
-  r_wrist:    [no_joint, no_joint, no_joint]
+  r_wrist:    [no_joint, -right_w1, no_joint]

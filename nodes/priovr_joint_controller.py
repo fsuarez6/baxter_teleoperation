@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-import rospy, serial, sys, math
+import rospy, serial, sys
+from math import pi
 # Messages
 from sensor_msgs.msg import JointState
 from baxter_core_msgs.msg import JointCommand
@@ -7,20 +8,20 @@ from baxter_core_msgs.msg import JointCommand
 from urdf_parser_py.urdf import URDF
 
 
-BAXTER_JOINTS = { 'left_s0': 0,
-                  'left_s1': 0,
-                  'left_e0': -math.pi/2,
-                  'left_e1': 0,
-                  'left_w0': 0,
-                  'left_w1': 0,
-                  'left_w2': 0,
-                  'right_s0': 0,
-                  'right_s1': 0,
-                  'right_e0': math.pi/2,
-                  'right_e1': 0,
-                  'right_w0': 0,
-                  'right_w1': 0,
-                  'right_w2': 0
+BAXTER_JOINTS = { 'left_s0':  {'initial': 0,      'factor': 1},
+                  'left_s1':  {'initial': 0,      'factor': 1},
+                  'left_e0':  {'initial': -pi/2,  'factor': 1},
+                  'left_e1':  {'initial': 0,      'factor': 1},
+                  'left_w0':  {'initial': 0,      'factor': 1},
+                  'left_w1':  {'initial': 0,      'factor': 2},
+                  'left_w2':  {'initial': 0,      'factor': 1},
+                  'right_s0': {'initial': 0,      'factor': 1},
+                  'right_s1': {'initial': 0,      'factor': 1},
+                  'right_e0': {'initial': pi/2,   'factor': 1},
+                  'right_e1': {'initial': 0,      'factor': 1},
+                  'right_w0': {'initial': 0,      'factor': 1},
+                  'right_w1': {'initial': 0,      'factor': 2},
+                  'right_w2': {'initial': 0,      'factor': 1}
                 }
 
 
@@ -71,13 +72,17 @@ class JointController(object):
       upper = self.joint_limits[joint_name].upper
       if not (lower <= msg.position[i] <= upper):
         continue
+      # Prepare the joint command
+      q0 = BAXTER_JOINTS[joint_name]['initial']
+      factor = BAXTER_JOINTS[joint_name]['factor']
+      joint_cmd = (factor * msg.position[i]) + q0
       # Append command to the corresponding arm
       if 'left_' in joint_name:
         left_msg.names.append(joint_name)
-        left_msg.command.append(msg.position[i] + BAXTER_JOINTS[joint_name])
+        left_msg.command.append(joint_cmd)
       elif 'right_' in joint_name:
         right_msg.names.append(joint_name)
-        right_msg.command.append(msg.position[i] + BAXTER_JOINTS[joint_name])
+        right_msg.command.append(joint_cmd)
     # Publish commands
     self.left_arm.publish(left_msg)
     self.right_arm.publish(right_msg)
