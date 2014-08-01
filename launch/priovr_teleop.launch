@@ -16,6 +16,12 @@
     <rosparam command="load" file="$(find priovr)/config/priovr_common.yaml"/>
   </node>
   
+  <!-- Right joystick -->
+  <node name="right_joystick" pkg="joy" type="joy_node" output="screen" ns="priovr">
+    <param name="dev" value="/dev/input/js0" />
+    <remap from="joy" to="right_joy" />
+  </node>
+  
   <!-- Show in Rviz -->
   <node name="rviz" pkg="rviz" type="rviz" output="screen" args="-d $(find baxter_teleop)/config/cartesian_controller.rviz"/>
   
