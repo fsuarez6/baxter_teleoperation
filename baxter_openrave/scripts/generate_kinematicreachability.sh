@@ -3,7 +3,7 @@ FILENAME=$(basename "$0")
 usage()
 {
 cat << EOF
-usage: rosrun baxter_teleop $FILENAME [options]
+usage: rosrun baxter_openrave $FILENAME [options]
 
 This script generates the kinematic reachability for the grips.
 
@@ -30,10 +30,10 @@ while getopts hsd opts; do
 done
 
 if [ $DAE = 1 ]; then
-  rosrun baxter_teleop generate_dae_files.sh
+  rosrun baxter_openrave generate_dae_files.sh
 fi
 # Grips
-DESCRIPTION_PKG=`rospack find baxter_teleop`
+DESCRIPTION_PKG=`rospack find baxter_openrave`
 ROBOT_XML=$DESCRIPTION_PKG/openrave/baxter.robot.xml
 # 6D Transform
 if [ $SHOW = 0 ]; then

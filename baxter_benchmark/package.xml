@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<package>
+  <name>baxter_benchmark</name>
+  <description>The baxter_benchmark package</description>
+  
+  <version>0.1.0</version>
+  <maintainer email="fsuarez6@gmail.com">Francisco Suarez-Ruiz</maintainer>
+  <license>BSD</license>
+  <url type="website">https://github.com/fsuarez6/baxter_teleoperation</url>
+  <url type="repository">https://github.com/fsuarez6/baxter_teleoperation</url>
+  <author>Francisco Suarez-Ruiz</author>
+  
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>baxter_core_msgs</build_depend>
+  <build_depend>baxter_interface</build_depend>
+  <build_depend>baxter_tools</build_depend>
+  
+  <run_depend>baxter_core_msgs</run_depend>d>
+  <run_depend>baxter_interface</run_depend>
+  <run_depend>baxter_tools</run_depend>
+
+</package>

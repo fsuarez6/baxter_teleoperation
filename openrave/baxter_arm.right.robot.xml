@@ -1,6 +1,0 @@
-<Robot name="baxter_right_arm" file="baxter_arm.right.dae">
-  <Manipulator name="right_arm">
-    <base>right_arm_mount</base>
-    <effector>right_gripper</effector>
-  </Manipulator>
-</Robot>

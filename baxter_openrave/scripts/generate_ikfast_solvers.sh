@@ -1,7 +1,7 @@
 #!/bin/sh
 #~ Baxter
-DESCRIPTION_PKG=`rospack find baxter_teleop`
-ROBOT_XML=$DESCRIPTION_PKG/openrave/baxter.robot.xml
+ROS_PKG=`rospack find baxter_openrave`
+ROBOT_XML=$ROS_PKG/openrave/baxter.robot.xml
 #~ transformation6d
 MSG_IKFAST_6D="Generating [transformation6d] ikfast databases from: $ROBOT_XML"
 echo $MSG_IKFAST_6D

@@ -1,4 +1,4 @@
-baxter-teleop 
+baxter-teleoperation 
 =============
 
 ROS packages developed by **TODO**. On going development continues in the hydro-devel branch.
@@ -14,7 +14,7 @@ ROS packages developed by **TODO**. On going development continues in the hydro-
 
 ### Build Status
 
-[![Build Status](https://travis-ci.org/fsuarez6/baxter_teleop.svg?branch=hydro-devel)](https://travis-ci.org/fsuarez6/baxter_teleop)
+[![Build Status](https://travis-ci.org/fsuarez6/baxter_teleoperation.svg?branch=hydro-devel)](https://travis-ci.org/fsuarez6/baxter_teleoperation)
 
 
 ## Installation
@@ -55,7 +55,7 @@ You might want to add that line to your `~/.bashrc`
 
 Try any of the `.launch` files in the package:
 ```
-roslaunch baxter_teleop ?.launch
+roslaunch baxter_teleop position_mode_benchmark.launch.launch
 ``` 
 
 ## Changelog
