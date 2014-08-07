@@ -1,6 +1,5 @@
-- git: {local-name: baxter_teleop, uri: 'https://github.com/fsuarez6/baxter_teleop.git', version: hydro-devel}
+- git: {local-name: baxter_teleoperation, uri: 'https://github.com/fsuarez6/baxter_teleoperation.git', version: hydro-devel}
 
 - git: {local-name: moveit_robots, uri: 'https://github.com/fsuarez6/moveit_robots.git', version: master}
-- git: {local-name: phantom_omni, uri: 'https://github.com/fsuarez6/phantom_omni', version: hydro-devel}
 - git: {local-name: rate_position_controller, uri: 'https://github.com/fsuarez6/rate_position_controller.git', version: master}
 

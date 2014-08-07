@@ -28,9 +28,11 @@ cd ~/catkin_ws/src
 Use the `wstool` to install the repository
 ```
 wstool init .
+wstool merge https://raw.github.com/tjesch/priorvr/master/priorvr.rosinstall
 wstool merge https://raw.github.com/RethinkRobotics/baxter/master/baxter_sdk.rosinstall
+wstool merge https://raw.github.com/fsuarez6/phantom_omni/hydro-devel/phantom_omni.rosinstall
 wstool merge https://raw.github.com/fsuarez6/moveit_kinematics_interface/hydro-devel/moveit_kinematics_interface.rosinstall
-wstool merge https://raw.github.com/fsuarez6/baxter_teleop/hydro-devel/baxter_teleop.rosinstall
+wstool merge https://raw.github.com/fsuarez6/baxter_teleoperation/hydro-devel/baxter_teleoperation.rosinstall
 wstool update
 ``` 
 Install any missing dependencies using rosdep:
