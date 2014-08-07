@@ -16,10 +16,10 @@
     <rosparam command="load" file="$(find priovr)/config/priovr_common.yaml"/>
   </node>
   
-  <!-- Right joystick -->
+  <!-- Joysticks -->
   <node name="right_joystick" pkg="joy" type="joy_node" output="screen" ns="priovr">
     <param name="dev" value="/dev/input/js0" />
-    <remap from="joy" to="right_joy" />
+    <remap from="joy" to="joysticks" />
   </node>
   
   <!-- Show in Rviz -->

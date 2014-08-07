@@ -11,34 +11,43 @@ import baxter_interface
 from baxter_interface import CHECK_VERSION
 
 
-BAXTER_JOINTS = { 'left_s0':  {'initial': 0,      'factor': 1},
-                  'left_s1':  {'initial': 0,      'factor': 1},
-                  'left_e0':  {'initial': -pi/2,  'factor': 1},
-                  'left_e1':  {'initial': 0,      'factor': 1},
-                  'left_w0':  {'initial': 0,      'factor': 1},
-                  'left_w1':  {'initial': 0,      'factor': 2},
-                  'left_w2':  {'initial': 0,      'factor': 1},
-                  'right_s0': {'initial': 0,      'factor': 1},
-                  'right_s1': {'initial': 0,      'factor': 1},
-                  'right_e0': {'initial': pi/2,   'factor': 1},
-                  'right_e1': {'initial': 0,      'factor': 1},
-                  'right_w0': {'initial': 0,      'factor': 1},
-                  'right_w1': {'initial': 0,      'factor': 2},
-                  'right_w2': {'initial': 0,      'factor': 1}
+BAXTER_JOINTS = { 'left_s0':  {'offset': 0,      'factor': 1},
+                  'left_s1':  {'offset': 0,      'factor': 1},
+                  'left_e0':  {'offset': -pi/2,  'factor': 1},
+                  'left_e1':  {'offset': 0,      'factor': 1},
+                  'left_w0':  {'offset': 0,      'factor': 1},
+                  'left_w1':  {'offset': 0,      'factor': 2},
+                  'left_w2':  {'offset': 0,      'factor': 1},
+                  'right_s0': {'offset': 0,      'factor': 1},
+                  'right_s1': {'offset': 0,      'factor': 1},
+                  'right_e0': {'offset': pi/2,   'factor': 1},
+                  'right_e1': {'offset': 0,      'factor': 1},
+                  'right_w0': {'offset': 0,      'factor': 1},
+                  'right_w1': {'offset': 0,      'factor': 2},
+                  'right_w2': {'offset': 0,      'factor': 1}
                 }
 
 # Joysticks globals
-Z_BUTTON_IDX = 2
-C_BUTTON_IDX = 3
-X_AXIS_IDX = 2
-Y_AXIS_IDX = 3
+LEFT_Z_BUTTON = 0
+LEFT_C_BUTTON = 1
+RIGHT_Z_BUTTON = 2
+RIGHT_C_BUTTON = 3
+LEFT_X_AXIS = 0
+LEFT_Y_AXIS = 1
+RIGHT_X_AXIS = 2
+RIGHT_Y_AXIS = 3
 
-class JointLimit(object):
-  def __init__(self):
-    self.lower = None
-    self.upper = None
-    self.effort = None
-    self.velocity = None
+def read_parameter(name, default):
+  if not rospy.has_param(name):
+    rospy.logwarn('Parameter [%s] not found, using default: %s' % (name, default))
+  return rospy.get_param(name, default)
+
+class JointLimits(object):
+  def __init__(self, joint):
+    self.lower = joint.limit.lower
+    self.upper = joint.limit.upper
+    self.effort = joint.limit.effort
+    self.velocity = joint.limit.velocity
   
   def __str__(self):
     msg = 'lower: [%s] upper: [%s] effort: [%s] velocity: [%s]' % (self.lower, self.upper, self.effort, self.velocity)
@@ -52,11 +61,7 @@ class JointController(object):
     robot_urdf = URDF.from_parameter_server()
     for name, joint in robot_urdf.joint_map.items():
       if name in BAXTER_JOINTS.keys():
-        self.joint_limits[name] = JointLimit()
-        self.joint_limits[name].lower = joint.limit.lower
-        self.joint_limits[name].upper = joint.limit.upper
-        self.joint_limits[name].effort = joint.limit.effort
-        self.joint_limits[name].velocity = joint.limit.velocity
+        self.joint_limits[name] = JointLimits(joint)
     # Set-up grippers interface
     self.left_gripper = baxter_interface.Gripper('left', CHECK_VERSION)
     self.right_gripper = baxter_interface.Gripper('right', CHECK_VERSION)
@@ -66,12 +71,12 @@ class JointController(object):
     self.c_bottom = False
     self.z_bottom = False
     self.right_w2_vel = 0
-    self.right_w2_pos = BAXTER_JOINTS['right_w2']['initial']
+    self.right_w2_pos = BAXTER_JOINTS['right_w2']['offset']
     # Set-up publishers/subscribers
     self.left_arm = rospy.Publisher('/robot/limb/left/joint_command', JointCommand)
     self.right_arm = rospy.Publisher('/robot/limb/right/joint_command', JointCommand)
     rospy.Subscriber('/priovr/joint_states', JointState, self.joint_states_cb)
-    rospy.Subscriber('/priovr/right_joy', Joy, self.right_joy_cb)
+    rospy.Subscriber('/priovr/joysticks', Joy, self.joysticks_cb)
     rospy.spin()
 
   def joint_states_cb(self, msg):
@@ -92,7 +97,7 @@ class JointController(object):
       if not (lower <= msg.position[i] <= upper):
         continue
       # Prepare the joint command
-      q0 = BAXTER_JOINTS[joint_name]['initial']
+      q0 = BAXTER_JOINTS[joint_name]['offset']
       factor = BAXTER_JOINTS[joint_name]['factor']
       joint_cmd = (factor * msg.position[i]) + q0
       # Append command to the corresponding arm
@@ -118,14 +123,14 @@ class JointController(object):
     self.left_arm.publish(left_msg)
     self.right_arm.publish(right_msg)
     
-  def right_joy_cb(self, msg):
+  def joysticks_cb(self, msg):
     # Check that the buttons where pressed / relased
-    if self.buttons_prev[0] != msg.buttons[C_BUTTON_IDX] or self.buttons_prev[1] != msg.buttons[Z_BUTTON_IDX]:
-      if msg.buttons[C_BUTTON_IDX] == 1:
+    if self.buttons_prev[0] != msg.buttons[RIGHT_C_BUTTON] or self.buttons_prev[1] != msg.buttons[RIGHT_Z_BUTTON]:
+      if msg.buttons[RIGHT_C_BUTTON] == 1:
         self.c_bottom = not self.c_bottom
-      if msg.buttons[Z_BUTTON_IDX] == 1:
+      if msg.buttons[RIGHT_Z_BUTTON] == 1:
         self.z_bottom = not self.z_bottom
-      self.buttons_prev = [msg.buttons[C_BUTTON_IDX], msg.buttons[Z_BUTTON_IDX]]
+      self.buttons_prev = [msg.buttons[RIGHT_C_BUTTON], msg.buttons[RIGHT_Z_BUTTON]]
       # Open or close the gripper
       if self.c_bottom:
         self.left_gripper.close()
@@ -136,13 +141,8 @@ class JointController(object):
       else:
         self.right_gripper.open()
     # Update the right wrist velocity
-    self.right_w2_vel = msg.axes[X_AXIS_IDX] * 0.02
-      
+    self.right_w2_vel = msg.axes[RIGHT_X_AXIS] * 0.02
 
-  def read_parameter(self, name, default):
-    if not rospy.has_param(name):
-      rospy.logwarn('Parameter [%s] not found, using default: %s' % (name, default))
-    return rospy.get_param(name, default)
 
 # Main
 if __name__ == '__main__':
