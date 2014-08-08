@@ -15,8 +15,9 @@
   <build_depend>baxter_interface</build_depend>
   <build_depend>baxter_tools</build_depend>
   
-  <run_depend>baxter_core_msgs</run_depend>d>
+  <run_depend>baxter_core_msgs</run_depend>
   <run_depend>baxter_interface</run_depend>
+  <run_depend>baxter_teleop</run_depend>
   <run_depend>baxter_tools</run_depend>
 
 </package>

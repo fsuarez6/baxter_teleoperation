@@ -1,5 +1,4 @@
 <launch>
-  <arg name="test_cases" default="10"/>
   <arg name="limb" default="right"/>
   <arg name="raw_mode" default="False"/>
   
@@ -17,8 +16,8 @@
   </node>
 
   <!-- Position mode benchmarking node -->
-  <node name="position_mode_benchmark" pkg="baxter_benchmark" type="position_mode_benchmark.py" output="screen" required="True">
-    <param name="test_cases" value="$(arg test_cases)"/>
+  <node name="repeatability_benchmark" pkg="baxter_benchmark" type="repeatability_benchmark.py" output="screen" required="True">
+    <rosparam command="load" file="$(find baxter_benchmark)/config/repeatability.yaml"/>
     <param name="raw_mode" value="$(arg raw_mode)"/>
     <param name="limb" value="$(arg limb)"/>
   </node>
