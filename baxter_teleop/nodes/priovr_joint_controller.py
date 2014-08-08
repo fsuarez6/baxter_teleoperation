@@ -9,6 +9,8 @@ from urdf_parser_py.urdf import URDF
 # Baxter Interface for the grippers
 import baxter_interface
 from baxter_interface import CHECK_VERSION
+# baxter_teleop Utils
+from baxter_teleop.utils import JointLimits, read_parameter
 
 
 BAXTER_JOINTS = { 'left_s0':  {'offset': 0,      'factor': 1},
@@ -36,22 +38,6 @@ LEFT_X_AXIS = 0
 LEFT_Y_AXIS = 1
 RIGHT_X_AXIS = 2
 RIGHT_Y_AXIS = 3
-
-def read_parameter(name, default):
-  if not rospy.has_param(name):
-    rospy.logwarn('Parameter [%s] not found, using default: %s' % (name, default))
-  return rospy.get_param(name, default)
-
-class JointLimits(object):
-  def __init__(self, joint):
-    self.lower = joint.limit.lower
-    self.upper = joint.limit.upper
-    self.effort = joint.limit.effort
-    self.velocity = joint.limit.velocity
-  
-  def __str__(self):
-    msg = 'lower: [%s] upper: [%s] effort: [%s] velocity: [%s]' % (self.lower, self.upper, self.effort, self.velocity)
-    return msg
 
 
 class JointController(object):
