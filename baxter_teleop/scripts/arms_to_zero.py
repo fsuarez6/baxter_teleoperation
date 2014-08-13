@@ -27,7 +27,7 @@ from baxter_core_msgs.msg import JointCommand
         
 if __name__ == '__main__':
   rospy.init_node('arms_to_zero')
-  rospy.loginfo("Initializing arms_to_zero Node")
+  rospy.loginfo('Initializing arms_to_zero Node')
   left_pub = rospy.Publisher('/robot/limb/left/joint_command', JointCommand)
   right_pub = rospy.Publisher('/robot/limb/right/joint_command', JointCommand)
   joints = ['s0','s1','e0','e1','w0','w1','w2']
@@ -41,9 +41,13 @@ if __name__ == '__main__':
     left_msg.names.append('left_' + joint)
     right_msg.names.append('right_' + joint)
   start_time = rospy.Time.now()
-  rospy.loginfo("Publishing command message for 5 seconds")
-  while rospy.Time.now() < start_time + rospy.Duration(5.0):
+  duration = 10
+  rate = rospy.Rate(100.0)
+  rospy.loginfo('Publishing command message for %s seconds' % duration)
+  while rospy.Time.now() < start_time + rospy.Duration(duration):
+    if rospy.is_shutdown():
+      break
     left_pub.publish(left_msg)
     right_pub.publish(right_msg)
-    rospy.sleep(1/60.0)
-  rospy.loginfo("Finishing arms_to_zero Node")
+    rate.sleep()
+  rospy.loginfo('Finishing arms_to_zero Node')
