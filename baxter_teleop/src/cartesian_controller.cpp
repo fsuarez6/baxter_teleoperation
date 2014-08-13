@@ -54,6 +54,7 @@ class CartesianController
     std::string                               model_frame_; 
     double                                    publish_rate_;
     double                                    position_error_;
+    bool                                      raw_mode_;
     
   public:
     CartesianController(): 
@@ -67,6 +68,7 @@ class CartesianController
       nh_private_.param(std::string("folder_key"), folder_key, std::string("6575ecddff8e44245a6d08f7e6a232f6"));
       nh_private_.param(std::string("file_key"), file_key, std::string("dc12ea999aabf684e4dab37176899cd2"));
       nh_private_.param(std::string("planning_group"), planning_group, std::string("right_arm"));
+      nh_private_.param(std::string("raw_mode"), raw_mode_, false);
 
       if (!nh_private_.hasParam("position_error"))
         ROS_WARN_STREAM("Parameter [~position_error] not found, using default: " << position_error_ << " m.");
@@ -80,6 +82,8 @@ class CartesianController
         ROS_WARN_STREAM("Parameter [~file_key] not found, using default: " << file_key);
       if (!nh_private_.hasParam("planning_group"))
         ROS_WARN_STREAM("Parameter [~planning_group] not found, using default: " << planning_group);
+      if (!nh_private_.hasParam("raw_mode"))
+        ROS_WARN_STREAM("Parameter [~raw_mode] not found, using default: " << raw_mode_);
 
       // Get robot namespace
       robot_namespace_ = ros::this_node::getNamespace();
@@ -149,10 +153,8 @@ class CartesianController
       last_motion_print_ = ros::Time::now();
     }
     
-    ~CartesianController()
-    {
-    }
-    
+    ~CartesianController(){}
+
     // publish pose only (for rviz visualization)
     void publishPose(const ros::TimerEvent& _event) 
     {
@@ -194,8 +196,8 @@ class CartesianController
       if (xyz_dist < position_error_)
         small_change = true;
       // Get the latest robot state
-      std::vector<double> current_joint_values;
-      ik_kinematics_->getJointPositions(current_joint_values);
+      std::vector<double> joint_positions, cmd_joint_positions;
+      ik_kinematics_->getJointPositions(joint_positions);
       bool found_ik = true;
       if (!small_change)
       {
@@ -203,9 +205,8 @@ class CartesianController
         bool found_ik = ik_kinematics_->setEndEffectorPose(_msg->pose, 1, 0.001);
       }
       // Get the new joint states for the arm
-      std::vector<double> new_joint_values;
       if (found_ik)
-        ik_kinematics_->getJointPositions(new_joint_values);
+        ik_kinematics_->getJointPositions(cmd_joint_positions);
       else
       {
         ROS_DEBUG("Did not find IK solution");
@@ -243,8 +244,8 @@ class CartesianController
           d_j[i] = 0;
           for(std::size_t j=0; j < joint_names_.size(); ++j)
           {
-            float j_error = fabs(current_joint_values[i] - metrics_db_["joint_states"][indices[0][i]][j]);
-            d_j[i] = fmax(d_j[i], j_error);
+            float j_error = fabs(joint_positions[i] - metrics_db_["joint_states"][indices[0][i]][j]);
+            d_j[i] = j_error;
           }
           // Heuristics to improve the ik solution
           score[i] = d_xyz[i] + d_j[i];
@@ -253,50 +254,45 @@ class CartesianController
         std::size_t choice_idx = std::min_element(score.begin(), score.end()) - score.begin();
         ROS_DEBUG("nn [%d] choice [%d] score [%f] d_q [%f] d_xyz [%f] d_j [%f]", nearest_neighbors, 
                     (int)choice_idx, score[choice_idx], d_q[choice_idx], d_xyz[choice_idx], d_j[choice_idx]);
-        // Populate the new joint_values
-        std::ostringstream new_str;
-        new_str << "new_joint_values : [";
+        // Populate the new joint_positions
         for(std::size_t i=0; i < joint_names_.size(); ++i)
-        {
-          new_joint_values.push_back(metrics_db_["joint_states"][indices[0][choice_idx]][i]);
-          new_str << new_joint_values[i] << " ";
-        }
-        new_str << "]";
-        ik_kinematics_->setJointPositions(new_joint_values);
+          cmd_joint_positions.push_back(metrics_db_["joint_states"][indices[0][choice_idx]][i]);
+        ik_kinematics_->setJointPositions(cmd_joint_positions);
         // Debugging
         if (ros::Time::now() - last_motion_print_  >= ros::Duration(1.0))
         {
           last_motion_print_ = ros::Time::now();
           ROS_DEBUG_STREAM("Index [" << choice_idx << "] Distance [" << dists[0][choice_idx] << "]");
-          ROS_DEBUG_STREAM(new_str.str());
         }
       }
       // Command the robot to the new joint_values
-      ROS_DEBUG("Joint names: %d, Joint values: %d", int(joint_names_.size()), int(new_joint_values.size()));
+      ROS_DEBUG("Joint names: %d, Joint values: %d", int(joint_names_.size()), int(cmd_joint_positions.size()));
       double elapsed_time = (ros::Time::now() - last_ik_time_).toSec();
       last_ik_time_ = ros::Time::now();
       double velocity;
       std::string joint;
       // Initialize the JointCommand msg. POSITION_MODE
       baxter_core_msgs::JointCommand cmd_msg;
-      cmd_msg.mode = cmd_msg.POSITION_MODE;
+      if (raw_mode_)
+        cmd_msg.mode = cmd_msg.RAW_POSITION_MODE;
+      else
+        cmd_msg.mode = cmd_msg.POSITION_MODE;
       cmd_msg.names.resize(joint_names_.size());
       cmd_msg.command.resize(joint_names_.size());
       for(std::size_t i=0; i < joint_names_.size(); ++i)
       {
-        //~ // Check the max velocity
-        //~ joint = joint_names_[i];
-        //~ if ( urdf_limits_.find(joint) == urdf_limits_.end() )
-          //~ continue;
-        //~ 
-        //~ velocity = (new_joint_values[i] - current_joint_values[i])/elapsed_time;
-        //~ if (velocity > urdf_limits_[joint].max_velocity)
-          //~ new_joint_values[i] = urdf_limits_[joint].max_velocity*elapsed_time + current_joint_values[i];
-        //~ if (velocity < -urdf_limits_[joint].max_velocity)
-          //~ new_joint_values[i] = -urdf_limits_[joint].max_velocity*elapsed_time + current_joint_values[i];
+        // Limit the max velocity between iterations
+        joint = joint_names_[i];
+        if ( urdf_limits_.find(joint) == urdf_limits_.end() )
+          continue;
+        velocity = (cmd_joint_positions[i] - joint_positions[i])/elapsed_time;
+        if (velocity > urdf_limits_[joint].max_velocity)
+          cmd_joint_positions[i] = urdf_limits_[joint].max_velocity*elapsed_time + joint_positions[i];
+        if (velocity < -urdf_limits_[joint].max_velocity)
+          cmd_joint_positions[i] = -urdf_limits_[joint].max_velocity*elapsed_time + joint_positions[i];
         // Populate the command to each joint
         cmd_msg.names[i] = joint_names_[i];
-        cmd_msg.command[i] = new_joint_values[i];
+        cmd_msg.command[i] = cmd_joint_positions[i];
         ROS_DEBUG("Joint %s: %f", cmd_msg.names[i].c_str(), cmd_msg.command[i]);
       }
       control_publisher_.publish(cmd_msg);
