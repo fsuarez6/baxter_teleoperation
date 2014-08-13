@@ -334,18 +334,18 @@ Visualization Manager:
       Enabled: true
       Head Length: 0.3
       Head Radius: 0.1
-      Name: ik_command
+      Name: r_wrist
       Shaft Length: 1
       Shaft Radius: 0.05
       Shape: Axes
-      Topic: /baxter/ik_command
+      Topic: /priovr/r_wrist_pose
       Value: true
     - Class: rviz/Marker
       Enabled: true
       Marker Topic: visualization_marker
-      Name: bubble
+      Name: visualization_marker
       Namespaces:
-        {}
+        skeleton: true
       Queue Size: 100
       Value: true
     - Class: rviz/Image
@@ -418,5 +418,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 1855
-  X: 57
-  Y: -4
+  X: 58
+  Y: 24

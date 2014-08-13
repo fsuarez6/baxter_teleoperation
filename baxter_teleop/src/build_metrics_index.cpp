@@ -74,7 +74,7 @@ int main(int argc, char** argv)
   
   // save the index
   std::ostringstream index_file;
-  index_file << getFolderName(folder_key) << "ik_metrics_index" << file_key << ".dat";
+  index_file << getFolderName(folder_key) << "ik_metrics_index." << file_key << ".dat";
   index.save(index_file.str());
   ROS_INFO_STREAM("Saved [metrics index] to:\n" << index_file.str());
 
