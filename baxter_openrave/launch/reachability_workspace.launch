@@ -1,0 +1,11 @@
+<launch>
+
+  <!-- Right Arm -->
+  <node name="r_reachability_workspace" pkg="moveit_kinematic_reachability" type="reachability_workspace.py" output="screen" 
+        args="--robot-xml=$(find baxter_openrave)/openrave/baxter.robot.xml --manipname=right_arm --show-profile"/>
+  
+  <!-- Left Arm -->
+  <node name="l_reachability_workspace" pkg="moveit_kinematic_reachability" type="reachability_workspace.py" output="screen" 
+        args="--robot-xml=$(find baxter_openrave)/openrave/baxter.robot.xml --manipname=left_arm --show-profile"/>
+
+</launch>
