@@ -116,7 +116,8 @@ class CartesianController
       std::ostringstream topic_name;
       topic_name << "/robot/limb/" << arm_name << "/joint_command";
       control_publisher_ = nh_.advertise<baxter_core_msgs::JointCommand>(topic_name.str().c_str(), 1);
-      topic_name.str(std::string());    // Clear
+      // Clear the buffer
+      topic_name.str(std::string());
       topic_name << "/robot/limb/" << arm_name << "/endpoint_state";
       end_point_sub_ = nh_.subscribe(topic_name.str().c_str(), 1, &CartesianController::endPointStateCB, this);
       topic_name.str("/baxter/ik_command");
@@ -154,16 +155,6 @@ class CartesianController
     }
     
     ~CartesianController(){}
-
-    // publish pose only (for rviz visualization)
-    void publishPose(const ros::TimerEvent& _event) 
-    {
-      geometry_msgs::PoseStamped pose_msg;
-      pose_msg.header.frame_id = model_frame_;
-      tf::poseEigenToMsg(end_effector_pose_, pose_msg.pose);
-      pose_msg.header.stamp = ros::Time::now();
-      pose_publisher_.publish(pose_msg);
-    }
     
     void endPointStateCB(const baxter_core_msgs::EndpointStateConstPtr& _msg) 
     {
@@ -175,7 +166,39 @@ class CartesianController
         ROS_DEBUG_STREAM("T [with respect base_link]:\n" << end_effector_pose_.matrix());
       }
     }
+
+    std::string getFolderName(const std::string& folder_key)
+    {
+      std::ostringstream folder_name;
+      folder_name << getenv("HOME") << "/.openrave/robot." << folder_key << "/";
+      return folder_name.str();
+    }
+
+    std::string getFilename(const std::string& database, const std::string& folder_key, const std::string& file_key)
+    {
+      std::ostringstream filename;
+      filename << getFolderName(folder_key) << database << "." << file_key << ".pp";
+      return filename.str();
+    }
+
+    double jointDeltaSum(const std::vector<double> &joint_positions, const std::vector<double> &solution)
+    {
+      // Calculate the joint delta sum
+      double delta_sum = 0;
+      for(size_t i=0; i< joint_positions.size(); ++i)
+        delta_sum += fabs(joint_positions[i] - solution[i]);
+      return delta_sum;
+    }
     
+    double jointDeltaSum(const std::vector<double> &joint_positions, float *solution)
+    {
+      // Calculate the joint delta sum
+      double delta_sum = 0;
+      for(size_t i=0; i< joint_positions.size(); ++i)
+        delta_sum += fabs(joint_positions[i] - solution[i]);
+      return delta_sum;
+    }
+
     void ikCommandCB(const geometry_msgs::PoseStampedConstPtr& _msg)
     { 
       // Validate the message frame_id
@@ -198,16 +221,14 @@ class CartesianController
       // Get the latest robot state
       std::vector<double> joint_positions, cmd_joint_positions;
       ik_kinematics_->getJointPositions(joint_positions);
+      // Do IK
       bool found_ik = true;
       if (!small_change)
-      {
-        // Here 1 is the number of random restart and 0.001s is the allowed time after each restart
         bool found_ik = ik_kinematics_->setEndEffectorPose(_msg->pose, 1, 0.001);
-      }
-      // Get the new joint states for the arm
-      if (found_ik)
-        ik_kinematics_->getJointPositions(cmd_joint_positions);
-      else
+      // Get the cmd joint states for the arm
+      ik_kinematics_->getJointPositions(cmd_joint_positions);
+      double delta_sum = jointDeltaSum(joint_positions, cmd_joint_positions);
+      if ((!found_ik) || (delta_sum > 0.5))
       {
         ROS_DEBUG("Did not find IK solution");
         // Determine nn closest XYZ points in the reachability database
@@ -235,30 +256,30 @@ class CartesianController
         for (std::size_t i=0; i < nearest_neighbors; ++i)
         {
           // http://math.stackexchange.com/questions/90081/quaternion-distance
-          q.w() = metrics_db_["orientations"][i][0];
-          q.x() = metrics_db_["orientations"][i][1];
-          q.y() = metrics_db_["orientations"][i][2];
-          q.z() = metrics_db_["orientations"][i][3];
+          q.w() = metrics_db_["orientations"][indices[0][i]][0];
+          q.x() = metrics_db_["orientations"][indices[0][i]][1];
+          q.y() = metrics_db_["orientations"][indices[0][i]][2];
+          q.z() = metrics_db_["orientations"][indices[0][i]][3];
           d_q[i] = 1 - pow(q.dot(q_actual), 2.0);
           d_xyz[i] = sqrtf(dists[0][i]);
-          d_j[i] = 0;
-          for(std::size_t j=0; j < joint_names_.size(); ++j)
-          {
-            float j_error = fabs(joint_positions[i] - metrics_db_["joint_states"][indices[0][i]][j]);
-            d_j[i] = j_error;
-          }
+          d_j[i] = jointDeltaSum(joint_positions, metrics_db_["joint_states"][indices[0][i]]);
+          //~ for(std::size_t j=0; j < joint_names_.size(); ++j)
+          //~ {
+            //~ float j_error = fabs(joint_positions[i] - metrics_db_["joint_states"][indices[0][i]][j]);
+            //~ d_j[i] += j_error;
+          //~ }
           // Heuristics to improve the ik solution
           score[i] = d_xyz[i] + d_j[i];
           //~ score[i] = 0.5*d_q[i] + 0.5*d_j[i];
         }
         std::size_t choice_idx = std::min_element(score.begin(), score.end()) - score.begin();
-        ROS_DEBUG("nn [%d] choice [%d] score [%f] d_q [%f] d_xyz [%f] d_j [%f]", nearest_neighbors, 
-                    (int)choice_idx, score[choice_idx], d_q[choice_idx], d_xyz[choice_idx], d_j[choice_idx]);
-        // Populate the new joint_positions
+        // Populate the cmd_joint_positions
         for(std::size_t i=0; i < joint_names_.size(); ++i)
           cmd_joint_positions.push_back(metrics_db_["joint_states"][indices[0][choice_idx]][i]);
         ik_kinematics_->setJointPositions(cmd_joint_positions);
         // Debugging
+        ROS_DEBUG("nn [%d] choice [%d] score [%f] d_q [%f] d_xyz [%f] d_j [%f]", nearest_neighbors, 
+                    (int)choice_idx, score[choice_idx], d_q[choice_idx], d_xyz[choice_idx], d_j[choice_idx]);
         if (ros::Time::now() - last_motion_print_  >= ros::Duration(1.0))
         {
           last_motion_print_ = ros::Time::now();
@@ -267,11 +288,7 @@ class CartesianController
       }
       // Command the robot to the new joint_values
       ROS_DEBUG("Joint names: %d, Joint values: %d", int(joint_names_.size()), int(cmd_joint_positions.size()));
-      double elapsed_time = (ros::Time::now() - last_ik_time_).toSec();
-      last_ik_time_ = ros::Time::now();
-      double velocity;
-      std::string joint;
-      // Initialize the JointCommand msg. POSITION_MODE
+      // Initialize the JointCommand message
       baxter_core_msgs::JointCommand cmd_msg;
       if (raw_mode_)
         cmd_msg.mode = cmd_msg.RAW_POSITION_MODE;
@@ -279,37 +296,38 @@ class CartesianController
         cmd_msg.mode = cmd_msg.POSITION_MODE;
       cmd_msg.names.resize(joint_names_.size());
       cmd_msg.command.resize(joint_names_.size());
+      // Limit the max velocity between iterations
+      double elapsed_time = (ros::Time::now() - last_ik_time_).toSec();
+      last_ik_time_ = ros::Time::now();
+      double velocity;
+      std::string joint;
       for(std::size_t i=0; i < joint_names_.size(); ++i)
       {
-        // Limit the max velocity between iterations
         joint = joint_names_[i];
         if ( urdf_limits_.find(joint) == urdf_limits_.end() )
           continue;
-        velocity = (cmd_joint_positions[i] - joint_positions[i])/elapsed_time;
+        velocity = (cmd_joint_positions[i] - joint_positions[i]) / elapsed_time;
         if (velocity > urdf_limits_[joint].max_velocity)
           cmd_joint_positions[i] = urdf_limits_[joint].max_velocity*elapsed_time + joint_positions[i];
         if (velocity < -urdf_limits_[joint].max_velocity)
           cmd_joint_positions[i] = -urdf_limits_[joint].max_velocity*elapsed_time + joint_positions[i];
-        // Populate the command to each joint
+        // Populate the JointCommand message
         cmd_msg.names[i] = joint_names_[i];
         cmd_msg.command[i] = cmd_joint_positions[i];
         ROS_DEBUG("Joint %s: %f", cmd_msg.names[i].c_str(), cmd_msg.command[i]);
       }
+      // Populate the JointCommand message
       control_publisher_.publish(cmd_msg);
     }
 
-    std::string getFolderName(const std::string& folder_key)
+    // publish pose only (for rviz visualization)
+    void publishPose(const ros::TimerEvent& _event) 
     {
-      std::ostringstream folder_name;
-      folder_name << getenv("HOME") << "/.openrave/robot." << folder_key << "/";
-      return folder_name.str();
-    }
-
-    std::string getFilename(const std::string& database, const std::string& folder_key, const std::string& file_key)
-    {
-      std::ostringstream filename;
-      filename << getFolderName(folder_key) << database << "." << file_key << ".pp";
-      return filename.str();
+      geometry_msgs::PoseStamped pose_msg;
+      pose_msg.header.frame_id = model_frame_;
+      tf::poseEigenToMsg(end_effector_pose_, pose_msg.pose);
+      pose_msg.header.stamp = ros::Time::now();
+      pose_publisher_.publish(pose_msg);
     }
 };
 

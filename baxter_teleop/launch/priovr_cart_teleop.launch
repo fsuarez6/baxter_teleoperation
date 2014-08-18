@@ -1,6 +1,7 @@
 <launch>
 
   <arg name="rviz" default="false"/>
+  <arg name="raw_mode" default="false"/>
   <arg name="enable_joysticks" default="false"/>
   <arg name="planning_group" default="right_arm" />
 
@@ -36,9 +37,11 @@
   <param name="robot_description_semantic" textfile="$(find baxter_moveit_config)/config/baxter.srdf" />
   
   <!-- motion control using ik plugin defined in kinematics.yaml -->
-  <node name="baxter_cart_controller" pkg="baxter_teleop" type="cartesian_controller" output="screen">
+  <node name="baxter_cart_controller" pkg="baxter_teleop" type="baxter_cartesian_controller" output="screen">
     <rosparam command="load" file="$(find baxter_moveit_config)/config/kinematics.yaml"/>
     <param name="publish_rate" value="100"/> <!-- Hz -->
+    <param name="position_error" value="0.02"/> <!-- meters -->
+    <param name="raw_mode" value="$(arg raw_mode)"/>
     <param name="planning_group" value="$(arg planning_group)"/>
     <!-- Remapping -->
     <remap from="/baxter/ik_command" to="/priovr/r_wrist_pose" />
