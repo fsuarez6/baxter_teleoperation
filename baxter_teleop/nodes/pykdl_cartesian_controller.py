@@ -4,15 +4,16 @@ import rospy, math
 import numpy as np
 # PyKDL
 import PyKDL
-from moveit_kinematics_interface.kdl_kinematics import Kinematics
 from tf_conversions import posemath
+from pykdl_utils.kdl_kinematics import KDLKinematics, joint_kdl_to_list
+# URDF
+from urdf_parser_py.urdf import URDF
+# Baxter Python Interface
+import baxter_interface
 # Utils
-from moveit_kinematics_interface.utils import kdl_to_numpy_array
 from baxter_teleop.utils import read_parameter
 # Messages
-from baxter_core_msgs.msg import EndpointState, JointCommand
 from geometry_msgs.msg import PoseStamped
-from sensor_msgs.msg import JointState
 
 
 class CartesianController(object):
@@ -20,65 +21,86 @@ class CartesianController(object):
     if limb not in ['right', 'left']:
       rospy.logerr('Unknown limb name [%s]' % limb)
       return
+    # Read the controllers parameters
+    self.kp = PyKDL.JntArray(6)
+    self.kd = PyKDL.JntArray(6)
+    for i in range(6):
+      self.kp[i] = 100
+      self.kd[i] = 1
     self.publish_rate = read_parameter('~publish_rate', 100)
     self.frame_id = read_parameter('~frame_id', 'base')
-    # Start kinematics interface
-    self.arm_kinematics = Kinematics('%s_gripper' % limb, ik_solver='LMA')
-    self.joint_names = self.arm_kinematics.get_joint_names()
-    self.joint_positions = [None] * len(self.joint_names)
+    self.timeout = read_parameter('~timeout', 0.1)       # seconds
+    # Set-up baxter interface
+    self.arm_interface = baxter_interface.Limb(limb)
+    # set_joint_velocities must be commanded at a rate great than the timeout specified by set_command_timeout.
+    # If the timeout is exceeded before a new set_joint_velocities command is received, the controller will switch
+    # modes back to position mode for safety purposes.
+    self.arm_interface.set_command_timeout(self.timeout)
+    # Baxter kinematics
+    self.urdf = URDF.from_parameter_server(key='robot_description')
+    self.tip_link = '%s_gripper' % limb
+    self.kinematics = KDLKinematics(self.urdf, self.frame_id, self.tip_link)
+    # Initialize the arm
+    self.arm_interface.move_to_neutral(timeout=10.0)
+    # Get the joint names
+    self.joint_names = self.arm_interface.joint_names()
+    self.num_joints = len(self.joint_names)
     # Set-up publishers/subscribers
-    self.joint_cmd_pub = rospy.Publisher('/robot/limb/%s/joint_command' % limb, JointCommand)
-    self.pose_pub = rospy.Publisher('/baxter/%s_gripper_pose' % limb, PoseStamped)
     rospy.Subscriber('/baxter/%s_ik_command' % limb, PoseStamped, self.ik_command_cb)
-    rospy.Subscriber('/robot/joint_states', JointState, self.joint_states_cb)
-    # Wait until the first joint_states msg is received
-    rospy.loginfo('Waiting for /robot/joint_states topic')
-    rate = rospy.Rate(100.0)
-    while not rospy.is_shutdown() and None in self.joint_positions:
-      rate.sleep()
-    # Ensure a valid joint command
-    self.joint_command = list(self.joint_positions)
-    self.robot_pose = PoseStamped()
-    rospy.Subscriber('/robot/limb/%s/endpoint_state' % limb, EndpointState, self.endpoint_state_cb)
-    rospy.loginfo('%s arm controller initialized' % limb)
 
   def shutdown(self):
     pass
   
-  def endpoint_state_cb(self, msg):
-    # Publish robot pose
-    self.robot_pose.pose = msg.pose
-    self.robot_pose.header.stamp = rospy.Time.now()
-    self.robot_pose.header.frame_id = self.frame_id
-    self.pose_pub.publish(self.robot_pose)
-    # Publish robot arm command
-    cmd_msg = JointCommand()
-    cmd_msg.mode = JointCommand().POSITION_MODE
-    cmd_msg.names = self.joint_names
-    cmd_msg.command = self.joint_command
-    self.joint_cmd_pub.publish(cmd_msg)
-    
-  def joint_states_cb(self, msg):
+  def get_kdl_angles(self):
+    q = PyKDL.JntArray(self.num_joints)
+    joint_angles = self.arm_interface.joint_angles()
     for i, name in enumerate(self.joint_names):
-      if name in msg.name:
-        self.joint_positions[i] = msg.position[msg.name.index(name)]
-      
+      q[i] = joint_angles[name]
+    return q
+  
+  def get_kdl_velocities(self):
+    qdot = PyKDL.JntArray(self.num_joints)
+    joint_velocities = self.arm_interface.joint_velocities()
+    for i, name in enumerate(self.joint_names):
+      qdot[i] = joint_velocities[name]
+    return qdot
+  
+  def jacobian_transpose(self, J):
+    J_transpose = PyKDL.Jacobian(J.columns())
+    for i in range(J.rows()):
+      for j in range(J.columns()):
+        J_transpose[j,i] = J[i,j]
+    return J_transpose
+  
   def ik_command_cb(self, msg):
     # TODO: Validate msg.header.frame_id
-    robot_frame = posemath.fromMsg(self.robot_pose)
-    target_frame = posemath.fromMsg(msg.pose)
-    seed = list(self.joint_positions)
-    found = self.arm_kinematics.search_ik(target_frame, seed, timeout=0.01)
-    # TODO: Check that the command changed enough
-    changed_enough = True
-    if found:
-      self.joint_command = kdl_to_numpy_array(self.arm_kinematics.get_joint_positions())
+    x_target = posemath.fromMsg(msg.pose)
+    # Get positions and velocities
+    q = self.get_kdl_angles()
+    qdot = self.get_kdl_velocities()
+    # Compute the forward kinematics and Jacobian (at this location)
+    x = posemath.fromMatrix(self.kinematics.forward(joint_kdl_to_list(q)))
+    # Use the jacobian solver directly to get the PyKDL.Jacobian object
+    J = PyKDL.Jacobian(self.num_joints)
+    self.kinematics._jac_kdl.JntToJac(q, J)
+    # TODO: Function to multiply a KDL::Jacobian with a KDL::JntArray to get a KDL::Twist, it should not be used 
+    # to calculate the forward velocity kinematics, the solver classes are built for this purpose. J*q = t
+    # Implement ChainFkSolverVel_recursive
+    xdot = J * qdot
+    # Calculate a Cartesian restoring wrench
+    x_error = PyKDL.diff(x, x_target)
+    wrench = PyKDL.Wrench(6)
+    for i in range(6):
+      wrench[i] = -(self.kp[i] * x_error[i] - self.kd[i] * xdot[i])
+    # Convert the force into a set of joint torques
+    tau = self.jacobian_transpose(J) * wrench
+    print 'fuck!'
 
 
 if __name__ == '__main__':
   node_name = 'pykdl_cartesian_controller'
   rospy.init_node(node_name)
   rospy.loginfo('Starting [%s] node' % node_name)
-  right_arm = CartesianController('right')
+  right_cc = CartesianController('right')
   rospy.spin()
   rospy.loginfo('Shuting down [%s] node' % node_name)
