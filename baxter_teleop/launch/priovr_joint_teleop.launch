@@ -1,28 +1,53 @@
 <launch>
   
-  <arg name="rviz" default="false"/>
+  <arg name="rviz" default="true"/>
+  <arg name="velocity_mode" default="false"/>
+  <arg name="raw_mode" default="false"/>
+  <arg name="enable_joysticks" default="false"/>
   
   <!-- Enable baxter robot -->
   <node name="enable_baxter_robot" pkg="baxter_tools" type="enable_robot.py" output="screen" args="-e"/>
   
   <!-- Open head camera only -->
   <node name="setup_head_camera" pkg="baxter_teleop" type="setup_head_camera.py" output="screen" />
-    
-  <!-- Joint controller -->
-  <node name="priovr_joint_controller" pkg="baxter_teleop" type="priovr_joint_controller.py" output="screen">
-  </node>
   
-  <!-- PrioVR node -->
+  <!-- Get Joint States from the PrioVR System -->
   <node name="get_joint_states" pkg="priovr_interface" type="get_joint_states.py" output="screen">
     <rosparam command="load" file="$(find baxter_teleop)/config/priovr_baxter.yaml"/>
     <rosparam command="load" file="$(find priovr_interface)/config/priovr_common.yaml"/>
   </node>
   
+  <!-- Joint Velocity Controller -->
+  <group if="$(arg velocity_mode)">
+    <node name="sensor_imus" pkg="priovr_interface" type="sensor_imus.py" output="screen">
+      <rosparam command="load" file="$(find priovr_interface)/config/priovr_common.yaml"/>
+      <param name="enable_joysticks" value="$(arg enable_joysticks)" />
+      <param name="frame_id" value="base" />
+    </node>
+    
+    <node name="priovr_jnt_velocity_controller" pkg="baxter_teleop" type="priovr_jnt_velocity_controller.py" output="screen"/>
+  </group>
+  
+  <!-- Joint Position Controller -->
+  <group unless="$(arg velocity_mode)">
+    <node name="sensor_orientations" pkg="priovr_interface" type="sensor_orientations.py" output="screen">
+      <rosparam command="load" file="$(find priovr_interface)/config/priovr_common.yaml"/>
+      <param name="enable_joysticks" value="$(arg enable_joysticks)" />
+      <param name="frame_id" value="base" />
+    </node>
+    
+    <node name="priovr_joint_controller" pkg="baxter_teleop" type="priovr_joint_controller.py" output="screen"> 
+      <param name="raw_mode" value="$(arg raw_mode)" />
+    </node>
+  </group>
+
   <!-- Joysticks -->
-  <node name="right_joystick" pkg="joy" type="joy_node" output="screen" ns="priovr">
-    <param name="dev" value="/dev/input/js0" />
-    <remap from="joy" to="joysticks" />
-  </node>
+  <group if="$(arg enable_joysticks)">
+    <node name="priovr_joysticks" pkg="joy" type="joy_node" output="screen" ns="priovr">
+      <param name="dev" value="/dev/input/js0" />
+      <remap from="joy" to="priovr/joysticks" />
+    </node>
+  </group>
   
   <!-- Show in Rviz -->
   <group if="$(arg rviz)">
