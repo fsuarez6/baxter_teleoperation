@@ -44,7 +44,7 @@ class CartesianController(object):
     self.kd = joint_list_to_kdl(gains['Kd'])
     self.publish_rate = read_parameter('~publish_rate', 500)
     self.frame_id = read_parameter('~frame_id', 'base')
-    self.timeout = read_parameter('~timeout', 0.1)       # seconds
+    self.timeout = read_parameter('~timeout', 0.02)       # seconds
     # Set-up baxter interface
     self.arm_interface = baxter_interface.Limb(limb)
     # set_joint_torques must be commanded at a rate great than the timeout specified by set_command_timeout.
@@ -58,11 +58,20 @@ class CartesianController(object):
     self.fk_vel_solver = PyKDL.ChainFkSolverVel_recursive(self.kinematics.chain)
     # Adjust the publish rate of baxter's state
     joint_state_pub_rate = rospy.Publisher('/robot/joint_state_publish_rate', UInt16)
-    # Initialize the arm
-    self.arm_interface.move_to_neutral(timeout=10.0)
     # Get the joint names
     self.joint_names = self.arm_interface.joint_names()
     self.num_joints = len(self.joint_names)
+    # Initialize the arm
+    #~ self.arm_interface.move_to_neutral(timeout=10.0)
+    # TODO: The last one should be pi/2 (sign ??)
+    neutral_pos = [-math.pi/4, -0.55, 0.0, 0.75, 0.0, 1.26, 0.0]
+    neutral_cmd = dict()
+    for i, name in enumerate(self.joint_names):
+      if name == 'left_so':
+        neutral_cmd[name] = neutral_pos[i] * -1.0
+      else:
+        neutral_cmd[name] = neutral_pos[i]
+    self.arm_interface.move_to_joint_positions(neutral_cmd, timeout=10.0)
     # Set-up publishers/subscribers
     self.suppress_grav_comp = rospy.Publisher('/robot/limb/%s/suppress_gravity_compensation' % limb, Empty)
     joint_state_pub_rate.publish(int(self.publish_rate))
@@ -95,10 +104,6 @@ class CartesianController(object):
     self.cart_command.header.stamp = rospy.Time.now()
 
   def torque_controller_cb(self, event):
-    """
-    Implementation of a Cartesian controller with PyKDL
-    
-    """
     if rospy.is_shutdown() or self.cart_command == None:
       return
     elapsed_time = rospy.Time.now() - self.cart_command.header.stamp
@@ -122,7 +127,7 @@ class CartesianController(object):
     self.kinematics._jac_kdl.JntToJac(jnt_array_vel.q, J)
     # Convert the force into a set of joint torques. tau = J^T * wrench
     tau = self.jacobian_transpose(J) * wrench
-    # TODO: Suppress gravity compensation??
+    # A much better controller will be needed if you suppress gravity compensation
     #~ self.suppress_grav_comp.publish(Empty())
     # Populate the joint_torques
     joint_torques = dict()

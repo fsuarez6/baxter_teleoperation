@@ -6,6 +6,7 @@ Panels:
       Expanded:
         - /RobotModel1/Links1
         - /TF1/Frames1
+        - /r_wrist1
       Splitter Ratio: 0.699346
     Tree Height: 425
   - Class: rviz/Selection
@@ -338,7 +339,7 @@ Visualization Manager:
       Shaft Length: 1
       Shaft Radius: 0.05
       Shape: Axes
-      Topic: /priovr/r_wrist_pose
+      Topic: /baxter/right_ik_command
       Value: true
     - Class: rviz/Marker
       Enabled: true
@@ -395,10 +396,10 @@ Visualization Manager:
         Z: 0
       Name: Current View
       Near Clip Distance: 0.01
-      Pitch: 0
+      Pitch: 0.075
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 0
+      Yaw: 0.61
     Saved: ~
 Window Geometry:
   Displays:

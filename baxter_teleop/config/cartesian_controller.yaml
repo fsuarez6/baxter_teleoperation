@@ -3,7 +3,7 @@ frame_id: base
 # Publish Rate in [Hz]
 publish_rate: 500
 # Advanced control modes (joint torque or velocity) must be commanded at a rate great than this timeout [seconds]
-timeout: 0.1
+timeout: 0.02
 
 # Joint Torque controller gains
 gains:
