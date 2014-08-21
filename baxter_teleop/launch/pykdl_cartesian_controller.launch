@@ -1,0 +1,16 @@
+<launch>
+  <arg name="rviz" default="true"/>
+    
+  <!-- Enable baxter robot -->
+  <node name="enable_baxter_robot" pkg="baxter_tools" type="enable_robot.py" output="screen" args="-e"/>
+   
+  <!-- PyKDL Cartesian Controller Node -->
+  <node name="pykdl_cartesian_controller" pkg="baxter_teleop" type="pykdl_cartesian_controller.py" output="screen">
+    <rosparam command="load" file="$(find baxter_teleop)/config/cartesian_controller.yaml"/>
+  </node>
+  
+  <!-- Show in Rviz -->
+  <group if="$(arg rviz)">
+    <node name="rviz" pkg="rviz" type="rviz" output="screen" args="-d $(find baxter_teleop)/config/cartesian_controller.rviz"/>
+  </group>
+</launch>
