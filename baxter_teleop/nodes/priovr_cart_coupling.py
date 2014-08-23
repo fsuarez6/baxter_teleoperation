@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import rospy
+import rospy, os
 import numpy as np
 # Messages
 from geometry_msgs.msg import Point, PoseStamped, Quaternion
@@ -23,6 +23,7 @@ class CartCoupling(object):
 
 # Main
 if __name__ == '__main__':
-  rospy.init_node('priovr_joint_controller')
+  node_name = os.path.splitext(os.path.basename(__file__))[0]
+  rospy.init_node(node_name)
   cc = CartCoupling('right')
   
