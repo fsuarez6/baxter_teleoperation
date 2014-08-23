@@ -1,0 +1,33 @@
+<launch>
+  <arg name="left_arm" default="True"/>
+  
+  <group if="$(arg left_arm)">
+    <include file="$(find baxter_teleop)/launch/kinematics_services.launch">
+      <arg name="planning_group" value="left_arm" />
+    </include>
+    
+    <node name="$(anon ik_metrics)" pkg="moveit_kinematics_interface" type="generate_ik_metrics.py" output="screen">
+      <param name="metrics_service" value="/baxter/kinematics_services/get_ik_metrics"/>
+      <param name="folder_key" value="6575ecddff8e44245a6d08f7e6a232f6"/>
+      <param name="file_key" value="119f22cd837e05b6686bbe6d990b6eb4"/>
+      <param name="ref_frame" value="base"/>
+      <param name="dofs" value="7"/>
+    </node>
+  </group>
+  
+  <group unless="$(arg left_arm)">
+    <include file="$(find baxter_teleop)/launch/kinematics_services.launch">
+      <arg name="planning_group" value="right_arm" />
+    </include>
+    
+    <node name="$(anon ik_metrics)" pkg="moveit_kinematics_interface" type="generate_ik_metrics.py" output="screen">
+      <param name="metrics_service" value="/baxter/kinematics_services/get_ik_metrics"/>
+      <param name="folder_key" value="6575ecddff8e44245a6d08f7e6a232f6"/>
+      <param name="file_key" value="dc12ea999aabf684e4dab37176899cd2"/>
+      <param name="ref_frame" value="base"/>
+      <param name="dofs" value="7"/>
+    </node>
+  </group>
+  
+  
+</launch>
