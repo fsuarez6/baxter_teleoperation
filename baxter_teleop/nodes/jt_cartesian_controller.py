@@ -26,7 +26,7 @@ class JTCartesianController(object):
     gains = read_parameter('~gains', dict())
     self.kp = joint_list_to_kdl(gains['Kp'])
     self.kd = joint_list_to_kdl(gains['Kd'])
-    self.k_posture = np.matrix(gains['K_posture']).T
+    self.k_posture = np.matrix(gains['K_posture'] * 7).T
     self.publish_rate = read_parameter('~publish_rate', 500)
     self.frame_id = read_parameter('~frame_id', 'base')
     self.timeout = read_parameter('~timeout', 0.02)       # seconds
@@ -55,7 +55,7 @@ class JTCartesianController(object):
         idx = self.joint_names.index(name)
         self.lower_limits[idx] = kdl_lower_limits[i]
         self.upper_limits[idx] = kdl_upper_limits[i]
-    self.q_posture = (self.upper_limits + self.lower_limits) / 2.0
+    self.middle_values = (self.upper_limits + self.lower_limits) / 2.0
     # Initialize the arm
     #~ self.arm_interface.move_to_neutral(timeout=10.0)
     # TODO: The last one should be pi/2 (sign ??)
@@ -118,20 +118,25 @@ class JTCartesianController(object):
     
     ##  Add the joint limits constraint using the Jacobian pseudo-inverse and Nullspace computation
     #   This method allows the projection of an objective function w(q) in the null space of J
-    posture_error = self.q_posture - q
-    posture_error = np.matrix(self.q_posture).T
+    #~ posture_error = self.middle_values - q
+    posture_error = np.zeros(self.num_joints)
+    for i in range(self.num_joints):
+      posture_error[i] = -0.5 * ((q[i] - self.middle_values[i]) / (self.upper_limits[i] - self.lower_limits[i])) ** 2
+    posture_error = np.matrix(posture_error).T
     I = np.matrix(np.identity(self.num_joints))
-    J_pinv = np.linalg.pinv(J)
-    tau_posture = (I - J_pinv * J) * np.multiply(posture_error, self.k_posture)
-    
-    # A better controller will be needed if you suppress gravity compensation
-    #~ self.suppress_grav_comp.publish(Empty())
+    # Inertia-weighted pseudoinverse of the Jacobian Matrix
+    J_T = J.T
+    M_inv = np.linalg.inv(self.kinematics.inertia(q))
+    J_pinv = M_inv * J_T * np.linalg.inv(J * M_inv * J_T)
+    N = (I - J_T * J_pinv.T)
+    tau_posture = N * np.multiply(posture_error, self.k_posture)
+
     # Populate the joint_torques
     tau = tau_pose + tau_posture
     joint_torques = dict()
     for i, name in enumerate(self.joint_names):
       joint_torques[name] = tau[i]
-    # This try is to avoid errors at shutdown (Don't know the why of these errors)
+    # This try is to avoid errors at shutdown (Don't know the why of such errors)
     try:
       self.arm_interface.set_joint_torques(joint_torques)
     except rospy.ROSException:
